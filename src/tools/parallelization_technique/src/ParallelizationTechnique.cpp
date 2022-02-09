@@ -513,6 +513,7 @@ void ParallelizationTechnique::generateCodeToStoreLiveOutVariables (
      * TODO: Find a better place to map this single clone (perhaps when the original loop's values are cloned)
      */
     auto producer = (Instruction*)LDI->environment->producerAt(envIndex);
+    errs() << "SUSAN: liveout:" << *producer << "\n";
     if (!task->doesOriginalLiveOutHaveManyClones(producer)) {
       auto singleProducerClone = task->getCloneOfOriginalInstruction(producer);
       task->addLiveOut(producer, singleProducerClone);
@@ -542,7 +543,6 @@ void ParallelizationTechnique::generateCodeToStoreLiveOutVariables (
        */
       auto identityV = getIdentityValueForEnvironmentValue(LDI, envIndex, envType);
       auto store = (StoreInst*)entryBuilder.CreateStore(identityV, envPtr);
-      errs() << "SUSAN: created storeInst for liveout:" << *store << "\n";
     }
 
     /*

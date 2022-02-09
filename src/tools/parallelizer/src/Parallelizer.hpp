@@ -68,6 +68,7 @@ namespace llvm::noelle {
 
       //SUSAN: syncfunction
       Function *SyncFunction;
+      std::set<Instruction*> exitPts;
       /*
        * Methods
        */

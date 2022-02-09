@@ -5,7 +5,7 @@
 
  * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
  * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "Noelle.hpp"
@@ -14,7 +14,7 @@
 
 namespace llvm::noelle{
 
-Noelle::Noelle() 
+Noelle::Noelle()
   : ModulePass{ID}
   , verbose{Verbosity::Disabled}
   , enableFloatAsReal{true}
@@ -30,11 +30,11 @@ Noelle::Noelle()
 
   return ;
 }
-      
+
 bool Noelle::canFloatsBeConsideredRealNumbers (void) const {
   return this->enableFloatAsReal;
 }
-      
+
 Module * Noelle::getProgram (void) const {
   return this->program;
 }
@@ -47,7 +47,7 @@ std::vector<Function *> * Noelle::getModuleFunctionsReachableFrom (Module *modul
    */
   auto &callGraph = getAnalysis<CallGraphWrapperPass>().getCallGraph();
 
-  /* 
+  /*
    * Compute the set of functions reachable from the starting point.
    */
   std::set<Function *> funcSet ;
