@@ -5,7 +5,7 @@
 
  * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
  * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "Parallelizer.hpp"
@@ -19,10 +19,10 @@ using namespace llvm::noelle;
 */
 static cl::opt<bool> ForceParallelization("noelle-parallelizer-force", cl::ZeroOrMore, cl::Hidden, cl::desc("Force the parallelization"));
 static cl::opt<bool> ForceNoSCCPartition("dswp-no-scc-merge", cl::ZeroOrMore, cl::Hidden, cl::desc("Force no SCC merging when parallelizing"));
-  
+
 Parallelizer::Parallelizer()
   :
-  ModulePass{ID}, 
+  ModulePass{ID},
   forceParallelization{false},
   forceNoSCCPartition{false}
   {
@@ -34,7 +34,7 @@ bool Parallelizer::doInitialization (Module &M) {
   this->forceParallelization = (ForceParallelization.getNumOccurrences() > 0);
   this->forceNoSCCPartition = (ForceNoSCCPartition.getNumOccurrences() > 0);
 
-  return false; 
+  return false;
 }
 
 bool Parallelizer::runOnModule (Module &M) {
@@ -55,6 +55,11 @@ bool Parallelizer::runOnModule (Module &M) {
   * Fetch the verbosity level.
   */
   auto verbosity = noelle.getVerbosity();
+
+
+  //SUSAN: get SyncFunction
+  SyncFunction = M.getFunction("NOELLE_SyncUpParallelWorkers");
+  errs() << "SUSAN: sync function:" << *SyncFunction << "\n";
 
   /*
   * Allocate the parallelization techniques.
@@ -94,7 +99,7 @@ bool Parallelizer::runOnModule (Module &M) {
   auto programLoops = noelle.getLoopStructures();
   if (programLoops->size() == 0){
     errs() << "Parallelizer:    There is no loop to consider\n";
-    
+
     /*
      * Free the memory.
      */
@@ -216,11 +221,11 @@ bool Parallelizer::runOnModule (Module &M) {
       * Print the coverage of this loop.
       */
       auto hotness = profiles->getDynamicTotalInstructionCoverage(loopStructure) * 100;
-      errs() << prefix << "  Hotness = " << hotness << " %\n"; 
+      errs() << prefix << "  Hotness = " << hotness << " %\n";
       auto averageInstsPerInvocation = profiles->getAverageTotalInstructionsPerInvocation(loopStructure);
-      errs() << prefix << "  Average instructions per invocation = " << averageInstsPerInvocation << " %\n"; 
+      errs() << prefix << "  Average instructions per invocation = " << averageInstsPerInvocation << " %\n";
       auto averageIterations = profiles->getAverageLoopIterationsPerInvocation(loopStructure);
-      errs() << prefix << "  Average iterations per invocation = " << averageIterations << " %\n"; 
+      errs() << prefix << "  Average iterations per invocation = " << averageIterations << " %\n";
       errs() << prefix << "\n";
 
       return false;

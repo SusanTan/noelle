@@ -5,7 +5,7 @@
 
  * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
  * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "DOALL.hpp"
@@ -65,7 +65,7 @@ bool DOALL::canBeAppliedToLoop (
   /*
    * The loop must have one single exit path.
    */
-  if (loopStructure->numberOfExitBasicBlocks() > 1){ 
+  if (loopStructure->numberOfExitBasicBlocks() > 1){
     if (this->verbose != Verbosity::Disabled) {
       errs() << "DOALL:   More than 1 loop exit blocks\n";
     }
@@ -193,7 +193,7 @@ bool DOALL::canBeAppliedToLoop (
   }
   return true;
 }
-      
+
 bool DOALL::apply (
   LoopDependenceInfo *LDI,
   Noelle &par,
@@ -206,6 +206,9 @@ bool DOALL::apply (
   auto loopStructure = LDI->getLoopStructure();
   auto loopHeader = loopStructure->getHeader();
   auto loopPreHeader = loopStructure->getPreHeader();
+
+  //SUSAN: fetch the syncfunction
+  SyncFunction = this->module.getFunction("NOELLE_SyncUpParallelWorkers");
 
   /*
    * Fetch the loop function.
@@ -311,7 +314,7 @@ bool DOALL::apply (
   if (this->verbose >= Verbosity::Maximal) {
     // loopFunction->print(errs() << "DOALL:  Final outside-loop code:\n" );
     // errs() << "\n";
-    tasks[0]->getTaskBody()->print(errs() << "DOALL:  Final parallelized loop:\n"); 
+    tasks[0]->getTaskBody()->print(errs() << "DOALL:  Final parallelized loop:\n");
     errs() << "\n";
     // SubCFGs execGraph(*chunkerTask->getTaskBody());
     // DGPrinter::writeGraph<SubCFGs, BasicBlock>("doalltask-loop" + std::to_string(LDI->getID()) + ".dot", &execGraph);
@@ -352,22 +355,32 @@ void DOALL::addChunkFunctionExecutionAsideOriginalLoop (
    */
   auto chunkSize = ConstantInt::get(par.int64, LDI->DOALLChunkSize);
 
+
   /*
    * Call the function that incudes the parallelized loop.
    */
   IRBuilder<> doallBuilder(this->entryPointOfParallelizedLoop);
+
+
+
+
   auto doallCallInst = doallBuilder.CreateCall(this->taskDispatcher, ArrayRef<Value *>({
     tasks[0]->getTaskBody(),
     envPtr,
     numCores,
     chunkSize
   }));
+
+  LDI->dispatcherInst = doallCallInst;
+
   auto numThreadsUsed = doallBuilder.CreateExtractValue(doallCallInst, (uint64_t)0);
 
   /*
    * Propagate the last value of live-out variables to the code outside the parallelized loop.
    */
   auto latestBBAfterDOALLCall = this->propagateLiveOutEnvironment(LDI, numThreadsUsed);
+  errs() << "SUSAN: latestBBAfterDOALLCall" << *latestBBAfterDOALLCall << "\n";
+
 
   /*
    * Jump to the unique successor of the loop.

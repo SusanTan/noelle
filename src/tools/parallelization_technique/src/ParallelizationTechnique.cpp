@@ -5,7 +5,7 @@
 
  * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
  * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "ParallelizationTechnique.hpp"
@@ -14,7 +14,7 @@ using namespace llvm;
 using namespace llvm::noelle;
 
 ParallelizationTechnique::ParallelizationTechnique (
-  Module &module, 
+  Module &module,
   Hot &p,
   Verbosity v
   )
@@ -162,6 +162,12 @@ BasicBlock * ParallelizationTechnique::propagateLiveOutEnvironment (LoopDependen
     initialValues[envInd] = castToCorrectReducibleType(*builder, initialValue, producer->getType());
   }
 
+  //SUSAN: insert sync function immediately before reduction
+  if(initialValues.size()){
+    builder->CreateCall(SyncFunction, ArrayRef<Value *>());
+    LDI->SyncFunctionInserted = true;
+  }
+
   auto afterReductionB = this->envBuilder->reduceLiveOutVariables(
     this->entryPointOfParallelizedLoop,
     *builder,
@@ -188,6 +194,7 @@ BasicBlock * ParallelizationTechnique::propagateLiveOutEnvironment (LoopDependen
   for (int envInd : LDI->environment->getEnvIndicesOfLiveOutVars()) {
     auto prod = LDI->environment->producerAt(envInd);
 
+    errs() << "SUSAN: prod: " << *prod << "\n";
     /*
      * NOTE(angelo): If the environment variable isn't reduced, it is held in allocated
      * memory that needs to be loaded from in order to retrieve the value
@@ -196,6 +203,7 @@ BasicBlock * ParallelizationTechnique::propagateLiveOutEnvironment (LoopDependen
     Value *envVar;
     if (isReduced) {
       envVar = envBuilder->getAccumulatedReducableEnvVar(envInd);
+      errs() << "SUSAN: reduction envVar: " << *envVar << "\n";
     } else {
       envVar = afterReductionBuilder->CreateLoad(envBuilder->getEnvVar(envInd));
     }
@@ -209,6 +217,13 @@ BasicBlock * ParallelizationTechnique::propagateLiveOutEnvironment (LoopDependen
       errs() << "Loop not in LCSSA!\n";
       abort();
     }
+
+    // SUSAN: add sync function
+    for (auto consumer : LDI->environment->consumersOf(prod)){
+      errs() << "SUSAN: consumer: " << *consumer << "\n";
+      firstUseOfLiveouts.push_back(consumer);
+    }
+
   }
 
   /*
@@ -440,7 +455,7 @@ void ParallelizationTechnique::cloneMemoryLocationsLocallyAndRewireLoop (
 }
 
 void ParallelizationTechnique::generateCodeToLoadLiveInVariables (
-  LoopDependenceInfo *LDI, 
+  LoopDependenceInfo *LDI,
   int taskIndex
 ){
   auto task = this->tasks[taskIndex];
@@ -464,7 +479,7 @@ void ParallelizationTechnique::generateCodeToLoadLiveInVariables (
 }
 
 void ParallelizationTechnique::generateCodeToStoreLiveOutVariables (
-  LoopDependenceInfo *LDI, 
+  LoopDependenceInfo *LDI,
   int taskIndex
 ){
 
@@ -526,17 +541,18 @@ void ParallelizationTechnique::generateCodeToStoreLiveOutVariables (
        * Store the identity value of the operator
        */
       auto identityV = getIdentityValueForEnvironmentValue(LDI, envIndex, envType);
-      entryBuilder.CreateStore(identityV, envPtr);
+      auto store = (StoreInst*)entryBuilder.CreateStore(identityV, envPtr);
+      errs() << "SUSAN: created storeInst for liveout:" << *store << "\n";
     }
 
     /*
      * Inject store instructions to propagate live-out values back to the caller of the parallelized loop.
-     * 
+     *
      * NOTE: To support storing live outs at exit blocks and not directly where the producer
      * is executed, produce a PHI node at each store point with the following incoming values:
      * the last executed intermediate of the producer that is post-dominated by that incoming block.
      * There should only be one such value assuming that store point is correctly chosen
-     * 
+     *
      * NOTE: This provides flexibility to parallelization schemes with modified prologues or latches
      * that have reducible live outs, and this flexibility is ONLY permitted for reducible live outs
      * as non-reducible live outs can never store intermediate values of the producer.
@@ -554,6 +570,7 @@ void ParallelizationTechnique::generateCodeToStoreLiveOutVariables (
         auto store = (StoreInst*)liveOutBuilder.CreateStore(producerValueToStore, envPtr);
         store->removeFromParent();
         store->insertBefore(BB->getTerminator());
+        errs() << "SUSAN: created storeInst for liveout:" << *store << "\n";
       }
     }
   }
@@ -614,7 +631,7 @@ std::set<BasicBlock *> ParallelizationTechnique::determineLatestPointsToInsertLi
 }
 
 Instruction * ParallelizationTechnique::fetchOrCreatePHIForIntermediateProducerValueOfReducibleLiveOutVariable (
-  LoopDependenceInfo *LDI, 
+  LoopDependenceInfo *LDI,
   int taskIndex,
   int envIndex,
   BasicBlock *insertBasicBlock,
@@ -707,7 +724,7 @@ Instruction * ParallelizationTechnique::fetchOrCreatePHIForIntermediateProducerV
     auto correctlyTypedValue = castToCorrectReducibleType(
       builderAtValue, lastDominatingIntermediateValue, producer->getType());
     phiNode->addIncoming(correctlyTypedValue, predecessor);
-  } 
+  }
 
   return phiNode;
 }
@@ -1070,7 +1087,7 @@ std::unordered_map<InductionVariable *, Value *> ParallelizationTechnique::clone
     /*
      * The step size is a composite SCEV. Fetch its instruction expansion,
      * cloning into the entry block of the function
-     * 
+     *
      * NOTE: The step size is expected to be loop invariant
      */
     auto expandedInsts = ivInfo->getComputationOfStepValue();
@@ -1105,7 +1122,7 @@ void ParallelizationTechnique::adjustStepValueOfPointerTypeIVToReflectPointerAri
    * If the IV's type is pointer, then the SCEV of the step value for the IV is
    * pointer arithmetic and needs to be multiplied by the bit size of pointers to
    * reflect the exact change of the value
-   * 
+   *
    * This occurs because GEP information is lost to ScalarEvolution analysis when it
    * computes the step value as a SCEV
    */

@@ -31,6 +31,10 @@ namespace llvm::noelle {
   class LoopDependenceInfo {
     public:
 
+      //SUSAN: added DS
+      bool SyncFunctionInserted;
+      Instruction *dispatcherInst;
+
       /*
        * Environment
        */
@@ -182,6 +186,8 @@ namespace llvm::noelle {
       ~LoopDependenceInfo();
 
     private:
+
+
 
       /*
        * Fields

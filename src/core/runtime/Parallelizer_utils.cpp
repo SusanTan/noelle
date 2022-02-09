@@ -33,6 +33,9 @@ static int64_t numberOfPushes64 = 0;
 
 static ThreadPool pool{true, std::thread::hardware_concurrency()};
 
+//SUSAN: added DS
+static std::vector<MARC::TaskFuture<void>> Futures;
+
 extern "C" {
 
   /******************************************** NOELLE APIs ***********************************************/
@@ -52,9 +55,9 @@ extern "C" {
    * Dispatch threads to run a DOALL loop.
    */
   DispatcherInfo NOELLE_DOALLDispatcher (
-    void (*parallelizedLoop)(void *, int64_t, int64_t, int64_t), 
-    void *env, 
-    int64_t maxNumberOfCores, 
+    void (*parallelizedLoop)(void *, int64_t, int64_t, int64_t),
+    void *env,
+    int64_t maxNumberOfCores,
     int64_t chunkSize
     );
 
@@ -108,8 +111,8 @@ extern "C" {
     printf("Pulled: %p\n", p);
   }
 
-  void queuePush8(ThreadSafeQueue<int8_t> *queue, int8_t *val) { 
-    queue->push(*val); 
+  void queuePush8(ThreadSafeQueue<int8_t> *queue, int8_t *val) {
+    queue->push(*val);
 
     #ifdef DSWP_STATS
     numberOfPushes8++;
@@ -118,13 +121,13 @@ extern "C" {
     return ;
   }
 
-  void queuePop8(ThreadSafeQueue<int8_t> *queue, int8_t *val) { 
-    queue->waitPop(*val); 
+  void queuePop8(ThreadSafeQueue<int8_t> *queue, int8_t *val) {
+    queue->waitPop(*val);
     return ;
   }
 
-  void queuePush16(ThreadSafeQueue<int16_t> *queue, int16_t *val) { 
-    queue->push(*val); 
+  void queuePush16(ThreadSafeQueue<int16_t> *queue, int16_t *val) {
+    queue->push(*val);
 
     #ifdef DSWP_STATS
     numberOfPushes16++;
@@ -133,12 +136,12 @@ extern "C" {
     return ;
   }
 
-  void queuePop16(ThreadSafeQueue<int16_t> *queue, int16_t *val) { 
+  void queuePop16(ThreadSafeQueue<int16_t> *queue, int16_t *val) {
     queue->waitPop(*val);
   }
 
-  void queuePush32(ThreadSafeQueue<int32_t> *queue, int32_t *val) { 
-    queue->push(*val); 
+  void queuePush32(ThreadSafeQueue<int32_t> *queue, int32_t *val) {
+    queue->push(*val);
 
     #ifdef DSWP_STATS
     numberOfPushes32++;
@@ -147,12 +150,12 @@ extern "C" {
     return ;
   }
 
-  void queuePop32(ThreadSafeQueue<int32_t> *queue, int32_t *val) { 
+  void queuePop32(ThreadSafeQueue<int32_t> *queue, int32_t *val) {
     queue->waitPop(*val);
   }
 
-  void queuePush64(ThreadSafeQueue<int64_t> *queue, int64_t *val) { 
-    queue->push(*val); 
+  void queuePush64(ThreadSafeQueue<int64_t> *queue, int64_t *val) {
+    queue->push(*val);
 
     #ifdef DSWP_STATS
     numberOfPushes64++;
@@ -161,8 +164,8 @@ extern "C" {
     return ;
   }
 
-  void queuePop64(ThreadSafeQueue<int64_t> *queue, int64_t *val) { 
-    queue->waitPop(*val); 
+  void queuePop64(ThreadSafeQueue<int64_t> *queue, int64_t *val) {
+    queue->waitPop(*val);
 
     return ;
   }
@@ -194,10 +197,19 @@ extern "C" {
     return ;
   }
 
+
+  //SUSAN: added sync function
+  void NOELLE_SyncUpParallelWorkers(){
+    for (auto& future : Futures){
+      future.get();
+    }
+    Futures.clear();
+  }
+
   DispatcherInfo NOELLE_DOALLDispatcher (
-    void (*parallelizedLoop)(void *, int64_t, int64_t, int64_t), 
-    void *env, 
-    int64_t maxNumberOfCores, 
+    void (*parallelizedLoop)(void *, int64_t, int64_t, int64_t),
+    void *env,
+    int64_t maxNumberOfCores,
     int64_t chunkSize
     ){
 
@@ -235,7 +247,7 @@ extern "C" {
       /*
        * Submit
        */
-      localFutures.push_back(pool.submit(NOELLE_DOALLTrampoline, argsPerCore));
+      Futures.push_back(pool.submit(NOELLE_DOALLTrampoline, argsPerCore));
       #ifdef RUNTIME_PRINT
       std::cerr << "Submitted DOALL task on core " << i << std::endl;
       #endif
@@ -247,9 +259,12 @@ extern "C" {
     /*
      * Wait for DOALL tasks.
      */
-    for (auto& future : localFutures){
-      future.get();
-    }
+
+    // SUSAN: cancel this wait
+    //for (auto& future : localFutures){
+    //  future.get();
+    //}
+
     #ifdef RUNTIME_PRINT
     std::cerr << "Got all futures" << std::endl;
     #endif
@@ -294,10 +309,10 @@ extern "C" {
      * Invoke
      */
     HELIX_args->parallelizedLoop(
-      HELIX_args->env, 
-      HELIX_args->loopCarriedArray, 
-      HELIX_args->ssArrayPast, 
-      HELIX_args->ssArrayFuture, 
+      HELIX_args->env,
+      HELIX_args->loopCarriedArray,
+      HELIX_args->ssArrayPast,
+      HELIX_args->ssArrayFuture,
       HELIX_args->coreID,
       HELIX_args->numCores,
       HELIX_args->loopIsOverFlag
@@ -331,10 +346,10 @@ extern "C" {
   }
 
   DispatcherInfo HELIX_dispatcher (
-    void (*parallelizedLoop)(void *, void *, void *, void *, int64_t, int64_t, uint64_t *), 
+    void (*parallelizedLoop)(void *, void *, void *, void *, int64_t, int64_t, uint64_t *),
     void *env,
     void *loopCarriedArray,
-    int64_t numCores, 
+    int64_t numCores,
     int64_t numOfsequentialSegments
     ){
     #ifdef RUNTIME_PRINT
@@ -477,7 +492,7 @@ extern "C" {
       continue ;
       localFutures.push_back(pool.submitToCores(
         cores,
-        HELIX_helperThread, 
+        HELIX_helperThread,
         ssArrayPast,
         numOfsequentialSegments,
         &loopIsOverFlag
@@ -577,7 +592,7 @@ extern "C" {
     void *localQueues;
   } NOELLE_DSWP_args_t ;
 
-  void stageExecuter(void (*stage)(void *, void *), void *env, void *queues){ 
+  void stageExecuter(void (*stage)(void *, void *), void *env, void *queues){
     return stage(env, queues);
   }
 

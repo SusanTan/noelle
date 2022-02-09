@@ -5,7 +5,7 @@
 
  * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
  * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "Parallelizer.hpp"
@@ -14,15 +14,18 @@ using namespace llvm;
 using namespace llvm::noelle;
 
 namespace llvm::noelle {
-  
+
   bool Parallelizer::parallelizeLoop (
-    LoopDependenceInfo *LDI, 
-    Noelle &par, 
-    DSWP &dswp, 
-    DOALL &doall, 
-    HELIX &helix, 
+    LoopDependenceInfo *LDI,
+    Noelle &par,
+    DSWP &dswp,
+    DOALL &doall,
+    HELIX &helix,
     Heuristics *h
     ){
+
+    //SUSAN: first, SyncFunction is not inserted
+    LDI->SyncFunctionInserted = false;
 
     /*
     * Assertions.
@@ -79,7 +82,7 @@ namespace llvm::noelle {
     } else if ( true
                 && par.isTransformationEnabled(HELIX_ID)
                 && LDI->isTransformationEnabled(HELIX_ID)
-                && helix.canBeAppliedToLoop(LDI, par, h)   
+                && helix.canBeAppliedToLoop(LDI, par, h)
       ){
 
       /*
@@ -161,7 +164,7 @@ namespace llvm::noelle {
       loopFunction->getParent(),
       loopPreHeader,
       entryPoint,
-      exitPoint, 
+      exitPoint,
       envArray,
       exitIndex,
       loopExitBlocks
@@ -176,6 +179,48 @@ namespace llvm::noelle {
     if (verbose != Verbosity::Disabled) {
       errs() << "Parallelizer: Exit\n";
     }
+
+
+    //SUSAN: add the syncup function here
+  /*
+   * Insert sync function before the first use of live-out value.
+   */
+
+  if(!LDI->SyncFunctionInserted){
+    if(usedTechnique->getLiveOutUses().empty())
+      errs() << "SUSAN: empty!!\n";
+    for(auto liveoutUse : usedTechnique->getLiveOutUses()){
+      errs() << "SUSAN:: liveoutUse!!!!\n";
+      if(PHINode *use = dyn_cast<PHINode>(liveoutUse)){
+        BasicBlock *BB = use->getParent();
+        for (pred_iterator PI = pred_begin(BB), E = pred_end(BB); PI != E; ++PI){
+          BasicBlock *pred = *PI;
+          Instruction *term = pred->getTerminator();
+          IRBuilder<> beforeLiveOutUseBuilder(term);
+          beforeLiveOutUseBuilder.CreateCall(SyncFunction, ArrayRef<Value *>());
+        }
+        LDI->SyncFunctionInserted = true;
+      }
+      else if(Instruction *use = dyn_cast<Instruction>(liveoutUse)){
+        BasicBlock *bb = use->getParent();
+        BasicBlock::iterator I;
+        for (I = bb->begin(); isa<PHINode>(I); ++I);
+        errs() << "SUSAN: insertPoint" << *I << "\n";
+        IRBuilder<> beforeLiveOutUseBuilder(&*I);
+        errs() << "SUSAN: consumer: " << *liveoutUse << "\n";
+        //errs() << "SyncFunction " << *syncFunction << "\n";
+        auto syncUpInst = beforeLiveOutUseBuilder.CreateCall(SyncFunction, ArrayRef<Value *>());
+        //errs() << "SUSAN: syncUpInst" << *syncUpInst << "\n";
+        LDI->SyncFunctionInserted = true;
+      }
+    }
+  }
+
+  if(!LDI->SyncFunctionInserted){
+    IRBuilder<> beforeDispatcherBuilder(LDI->dispatcherInst);
+    beforeDispatcherBuilder.CreateCall(SyncFunction, ArrayRef<Value *>());
+  }
+
     return true;
   }
 }
