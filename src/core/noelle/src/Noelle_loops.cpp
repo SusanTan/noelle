@@ -199,6 +199,7 @@ LoopDependenceInfo * Noelle::getLoop (
     std::unordered_set<LoopDependenceInfoOptimization> optimizations
     ) {
 
+  //SUSAN: add external edges
   /*
    * Fetch the the function dependence graph, post dominators, and scalar evolution
    */
@@ -1008,7 +1009,7 @@ void Noelle::filterOutLoops (
 }
 
 void Noelle::filterOutLoops (
-  noelle::StayConnectedNestedLoopForest *f, 
+  noelle::StayConnectedNestedLoopForest *f,
   std::function<bool (LoopStructure *)> filter
   ) {
 

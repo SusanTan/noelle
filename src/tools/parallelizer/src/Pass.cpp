@@ -10,6 +10,8 @@
  */
 #include "Parallelizer.hpp"
 
+//SUSAN: temporary added lib
+#include "PDGPrinter.hpp"
 
 using namespace llvm;
 using namespace llvm::noelle;
@@ -278,6 +280,7 @@ bool Parallelizer::runOnModule (Module &M) {
     /*
     * Parallelize the loops.
     */
+    //SUSAN: LDI is used in parallelizer
     for (auto ldi : loopsToParallelize){
 
       /*
@@ -296,6 +299,18 @@ bool Parallelizer::runOnModule (Module &M) {
         errs() << "Parallelizer:    Loop " << loopID << " cannot be parallelized because one of its parent has been parallelized already\n";
         continue ;
       }
+
+      //NOTE: here the live outs are from unparallelized loop
+     // PDG *loopDG = ldi->getLoopDG();
+     // for (auto nodeI : loopDG->externalNodePairs()) {
+     //   auto externalNode = nodeI.second;
+     //   auto externalValue = externalNode->getT();
+     //   for (auto edge : externalNode->getIncomingEdges()) {
+     //     if (edge->isMemoryDependence() || edge->isControlDependence()) {
+     //       DepExternal.insert(externalValue);
+     //     }
+     //   }
+     // }
 
       /*
       * Parallelize the current loop.

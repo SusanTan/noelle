@@ -5,7 +5,7 @@
 
  * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
  * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "LoopEnvironment.hpp"
@@ -14,7 +14,7 @@ using namespace llvm;
 using namespace llvm::noelle;
 
 LoopEnvironment::LoopEnvironment (
-  PDG *loopDG, 
+  PDG *loopDG,
   std::vector<BasicBlock *> &exitBlocks
   ) {
 
@@ -49,6 +49,7 @@ LoopEnvironment::LoopEnvironment (
      */
     for (auto edge : externalNode->getIncomingEdges()) {
       if (edge->isMemoryDependence() || edge->isControlDependence()) {
+        externalDeps.insert(externalValue);
         continue;
       }
       auto internalValue = edge->getOutgoingT();
@@ -101,18 +102,18 @@ bool LoopEnvironment::isLiveIn (Value *val) {
   return isProducer(val) && liveInInds.find(producerIndexMap[val]) != liveInInds.end();
 }
 
-void LoopEnvironment::addLiveInProducer (Value *producer) { 
-  addProducer(producer, true); 
+void LoopEnvironment::addLiveInProducer (Value *producer) {
+  addProducer(producer, true);
   return ;
 }
 
-void LoopEnvironment::addLiveOutProducer (Value *producer) { 
-  addProducer(producer, false); 
+void LoopEnvironment::addLiveOutProducer (Value *producer) {
+  addProducer(producer, false);
   return ;
 }
 
 int LoopEnvironment::indexOfExitBlock (void) const {
-  return hasExitBlockEnv ? envProducers.size() : -1; 
+  return hasExitBlockEnv ? envProducers.size() : -1;
 }
 
 int LoopEnvironment::envSize (void) const {
@@ -123,18 +124,18 @@ std::set<Value *> LoopEnvironment::consumersOf (Value *prod) {
   return prodConsumers[prod];
 }
 
-iterator_range<std::vector<Value *>::iterator> LoopEnvironment::getProducers (void) { 
+iterator_range<std::vector<Value *>::iterator> LoopEnvironment::getProducers (void) {
   return make_range(envProducers.begin(), envProducers.end());
 }
-      
-iterator_range<std::set<int>::iterator> LoopEnvironment::getEnvIndicesOfLiveInVars (void) { 
+
+iterator_range<std::set<int>::iterator> LoopEnvironment::getEnvIndicesOfLiveInVars (void) {
   return make_range(liveInInds.begin(), liveInInds.end());
 }
-      
-iterator_range<std::set<int>::iterator> LoopEnvironment::getEnvIndicesOfLiveOutVars (void) { 
+
+iterator_range<std::set<int>::iterator> LoopEnvironment::getEnvIndicesOfLiveOutVars (void) {
   return make_range(liveOutInds.begin(), liveOutInds.end());
 }
 
-Value * LoopEnvironment::producerAt (uint32_t ind) { 
-  return envProducers[ind]; 
+Value * LoopEnvironment::producerAt (uint32_t ind) {
+  return envProducers[ind];
 }

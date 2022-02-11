@@ -216,6 +216,25 @@ namespace llvm::noelle {
     }
   }
 
+//  PDG *loopDG = LDI->getLoopDG();
+//  for (auto nodeI : loopDG->externalNodePairs()) {
+//    auto externalNode = nodeI.second;
+//    auto externalValue = externalNode->getT();
+//    errs() << "SUSAN: external node" << *externalValue << "\n";
+//    for (auto edge : externalNode->getIncomingEdges()) {
+//      if (edge->isMemoryDependence() || edge->isControlDependence()) {
+//        DepExternal.insert(externalValue);
+//      }
+//    }
+//  }
+
+  for(auto insertPt : LDI->environment->externalDeps){
+    Instruction *depInst = dyn_cast<Instruction>(insertPt);
+    assert(depInst && "SUSAN: the external node isn't an instruction??\n");
+    IRBuilder<> beforeDepBuilder(depInst);
+    beforeDepBuilder.CreateCall(SyncFunction, ArrayRef<Value *>());
+  }
+
   if(!LDI->SyncFunctionInserted){
     IRBuilder<> beforeDispatcherBuilder(LDI->dispatcherInst);
     beforeDispatcherBuilder.CreateCall(SyncFunction, ArrayRef<Value *>());

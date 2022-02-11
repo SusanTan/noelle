@@ -5,7 +5,7 @@
 
  * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
  * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "llvm/Pass.h"
@@ -24,7 +24,7 @@
 using namespace llvm;
 using namespace llvm::noelle;
 
-PDG::PDG (Module &M) 
+PDG::PDG (Module &M)
   {
 
   /*
@@ -35,7 +35,7 @@ PDG::PDG (Module &M)
     addNodesOf(F);
   }
 
-  /* 
+  /*
    * Set the entry node: the first instruction of the function "main"
    */
   auto mainF = M.getFunction("main");
@@ -110,8 +110,8 @@ void PDG::setEntryPointAt (Function &F) {
   assert(entryNode != nullptr);
 }
 
-DGEdge<Value> * PDG::addEdge (Value *from, Value *to) { 
-  return this->DG<Value>::addEdge(from, to); 
+DGEdge<Value> * PDG::addEdge (Value *from, Value *to) {
+  return this->DG<Value>::addEdge(from, to);
 }
 
 PDG * PDG::createFunctionSubgraph(Function &F) {
@@ -146,6 +146,7 @@ PDG * PDG::createLoopsSubgraph(Loop *loop) {
   /*
    * Recreate all edges connected to internal nodes of loop
    */
+  //SUSAN: seems like external edges are included
   copyEdgesInto(loopsPDG, /*linkToExternal=*/ true);
 
   return loopsPDG;
@@ -195,7 +196,7 @@ void PDG::copyEdgesInto (PDG *newPDG, bool linkToExternal, std::unordered_set<DG
     if (!linkToExternal && (!fromInclusion || !toInclusion)) {
       continue;
     }
-    
+
     /*
      * Create appropriate external nodes and associate edge to them
      */
@@ -214,13 +215,13 @@ void PDG::copyEdgesInto (PDG *newPDG, bool linkToExternal, std::unordered_set<DG
 int64_t PDG::getNumberOfInstructionsIncluded (void) const {
   return this->numInternalNodes();
 }
-      
+
 int64_t PDG::getNumberOfDependencesBetweenInstructions (void) const {
   return this->numEdges();
 }
 
 bool PDG::iterateOverDependencesFrom (
-  Value *from, 
+  Value *from,
   bool includeControlDependences,
   bool includeMemoryDataDependences,
   bool includeRegisterDataDependences,
@@ -258,7 +259,7 @@ bool PDG::iterateOverDependencesFrom (
       }
       continue ;
     }
-        
+
     /*
      * Check if this is a memory dependence.
      */
@@ -292,7 +293,7 @@ bool PDG::iterateOverDependencesFrom (
 }
 
 bool PDG::iterateOverDependencesTo (
-  Value *toValue, 
+  Value *toValue,
   bool includeControlDependences,
   bool includeMemoryDataDependences,
   bool includeRegisterDataDependences,
@@ -330,7 +331,7 @@ bool PDG::iterateOverDependencesTo (
       }
       continue ;
     }
-        
+
     /*
      * Check if this is a memory dependence.
      */

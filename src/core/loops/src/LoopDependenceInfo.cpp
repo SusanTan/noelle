@@ -22,7 +22,7 @@ LoopDependenceInfo::LoopDependenceInfo (
   Loop *l,
   DominatorSummary &DS,
   ScalarEvolution &SE
-) : LoopDependenceInfo{fG, l, DS, SE, Architecture::getNumberOfLogicalCores(), true, {}, nullptr, true} 
+) : LoopDependenceInfo{fG, l, DS, SE, Architecture::getNumberOfLogicalCores(), true, {}, nullptr, true}
   {
   return ;
 }
@@ -95,6 +95,7 @@ LoopDependenceInfo::LoopDependenceInfo(
   this->fetchLoopAndBBInfo(l, SE);
   auto ls = this->getLoopStructure();
   auto loopExitBlocks = ls->getLoopExitBasicBlocks();
+  //SUSAN: where loogDG is extracted from PDG
   auto DGs = this->createDGsForLoop(l, fG, DS, SE, loopAA);
   this->loopDG = DGs.first;
   auto loopSCCDAG = DGs.second;
@@ -182,6 +183,7 @@ std::pair<PDG *, SCCDAG *> LoopDependenceInfo::createDGsForLoop (
   for (auto edge : functionDG->getEdges()) {
     assert(!edge->isLoopCarriedDependence() && "Flag was already set");
   }
+  //SUSAN: creating subgraph
   auto loopDG = functionDG->createLoopsSubgraph(l);
   for (auto edge : loopDG->getEdges()) {
     assert(!edge->isLoopCarriedDependence() && "Flag was already set");
@@ -202,7 +204,7 @@ std::pair<PDG *, SCCDAG *> LoopDependenceInfo::createDGsForLoop (
    * When they are, this won't need to be done
    *
    * HACK: The SCCDAG is constructed with a loop internal DG to avoid external nodes in the loop DG
-   * which provide context (live-ins/live-outs) but which complicate analyzing the resulting SCCDAG 
+   * which provide context (live-ins/live-outs) but which complicate analyzing the resulting SCCDAG
    */
   LoopCarriedDependencies::setLoopCarriedDependencies(liSummary, DS, *loopDG);
 
@@ -306,7 +308,7 @@ void LoopDependenceInfo::removeUnnecessaryDependenciesThatCloningMemoryNegates (
     loopInternalDG->removeEdge(edge);
   }
 }
- 
+
 bool LoopDependenceInfo::isTransformationEnabled (Transformation transformation){
   auto exist = this->enabledTransformations.find(transformation) != this->enabledTransformations.end();
 
