@@ -24,7 +24,9 @@ namespace llvm::noelle {
     Heuristics *h
     ){
 
-    //SUSAN: first, SyncFunction is not inserted
+    /*
+     * Synchronization: avoid inserting before dispatcher if SyncFunction is added either before reduction, live-outs, or dependence
+     */
     LDI->SyncFunctionInserted = false;
 
     /*
@@ -181,16 +183,11 @@ namespace llvm::noelle {
     }
 
 
-    //SUSAN: add the syncup function here
   /*
-   * Insert sync function before the first use of live-out value.
+   * Synchronization: Insert sync function before the first use of live-out value.
    */
-
   if(!LDI->SyncFunctionInserted){
-    if(usedTechnique->getLiveOutUses().empty())
-      errs() << "SUSAN: empty!!\n";
     for(auto liveoutUse : usedTechnique->getLiveOutUses()){
-      errs() << "SUSAN:: liveoutUse!!!!\n";
       if(PHINode *use = dyn_cast<PHINode>(liveoutUse)){
         BasicBlock *BB = use->getParent();
         for (pred_iterator PI = pred_begin(BB), E = pred_end(BB); PI != E; ++PI){
@@ -205,24 +202,21 @@ namespace llvm::noelle {
         BasicBlock *bb = use->getParent();
         BasicBlock::iterator I;
         for (I = bb->begin(); isa<PHINode>(I); ++I);
-        errs() << "SUSAN: insertPoint" << *I << "\n";
         IRBuilder<> beforeLiveOutUseBuilder(&*I);
-        errs() << "SUSAN: consumer: " << *liveoutUse << "\n";
-        //errs() << "SyncFunction " << *syncFunction << "\n";
         auto syncUpInst = beforeLiveOutUseBuilder.CreateCall(SyncFunction, ArrayRef<Value *>());
-        //errs() << "SUSAN: syncUpInst" << *syncUpInst << "\n";
         LDI->SyncFunctionInserted = true;
       }
     }
   }
 
 
-  //SUSAN: add sync function to memory/control dependent instructions
-  //optimize: if within a basic block there are mutliple dependences, add sync function before the earliest inst
+  /*
+   * Synchronization: Insert sync function before external memory/control dependence
+   */
   std::set<BasicBlock *> depBBs;
   for(auto insertPt : LDI->environment->externalDeps){
     Instruction *depInst = dyn_cast<Instruction>(insertPt);
-    assert(depInst && "SUSAN: the external node isn't an instruction??\n");
+    assert(depInst && "Synchronization: the external node isn't an instruction??\n");
     depBBs.insert(depInst->getParent());
   }
 
@@ -237,11 +231,17 @@ namespace llvm::noelle {
     }
   }
 
+  /*
+   * Synchronization: Insert sync function before dispatcher if not inserted before reduction, live-outs, or mem/ctrl dependences
+   */
   if(!LDI->SyncFunctionInserted){
     IRBuilder<> beforeDispatcherBuilder(LDI->dispatcherInst);
     beforeDispatcherBuilder.CreateCall(SyncFunction, ArrayRef<Value *>());
   }
 
+  /*
+   * Synchronization: Insert sync function before exits
+   */
   for(auto exit : exitPts){
     IRBuilder<> beforeExitBuilder(exit);
     beforeExitBuilder.CreateCall(SyncFunction, ArrayRef<Value *>());

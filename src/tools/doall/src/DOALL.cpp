@@ -207,9 +207,6 @@ bool DOALL::apply (
   auto loopHeader = loopStructure->getHeader();
   auto loopPreHeader = loopStructure->getPreHeader();
 
-  //SUSAN: fetch the syncfunction
-  SyncFunction = this->module.getFunction("NOELLE_SyncUpParallelWorkers");
-
   /*
    * Fetch the loop function.
    */
@@ -379,7 +376,6 @@ void DOALL::addChunkFunctionExecutionAsideOriginalLoop (
    * Propagate the last value of live-out variables to the code outside the parallelized loop.
    */
   auto latestBBAfterDOALLCall = this->propagateLiveOutEnvironment(LDI, numThreadsUsed);
-  errs() << "SUSAN: latestBBAfterDOALLCall" << *latestBBAfterDOALLCall << "\n";
 
 
   /*

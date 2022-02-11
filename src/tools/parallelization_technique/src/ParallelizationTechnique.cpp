@@ -162,7 +162,9 @@ BasicBlock * ParallelizationTechnique::propagateLiveOutEnvironment (LoopDependen
     initialValues[envInd] = castToCorrectReducibleType(*builder, initialValue, producer->getType());
   }
 
-  //SUSAN: insert sync function immediately before reduction
+  /*
+   * Synchronization: If loop has reduction, synchronize threads before reduction
+   */
   if(initialValues.size()){
     builder->CreateCall(SyncFunction, ArrayRef<Value *>());
     LDI->SyncFunctionInserted = true;
@@ -194,7 +196,6 @@ BasicBlock * ParallelizationTechnique::propagateLiveOutEnvironment (LoopDependen
   for (int envInd : LDI->environment->getEnvIndicesOfLiveOutVars()) {
     auto prod = LDI->environment->producerAt(envInd);
 
-    errs() << "SUSAN: prod: " << *prod << "\n";
     /*
      * NOTE(angelo): If the environment variable isn't reduced, it is held in allocated
      * memory that needs to be loaded from in order to retrieve the value
@@ -203,7 +204,6 @@ BasicBlock * ParallelizationTechnique::propagateLiveOutEnvironment (LoopDependen
     Value *envVar;
     if (isReduced) {
       envVar = envBuilder->getAccumulatedReducableEnvVar(envInd);
-      errs() << "SUSAN: reduction envVar: " << *envVar << "\n";
     } else {
       envVar = afterReductionBuilder->CreateLoad(envBuilder->getEnvVar(envInd));
     }
@@ -218,11 +218,11 @@ BasicBlock * ParallelizationTechnique::propagateLiveOutEnvironment (LoopDependen
       abort();
     }
 
-    // SUSAN: add sync function
-    for (auto consumer : LDI->environment->consumersOf(prod)){
-      errs() << "SUSAN: consumer: " << *consumer << "\n";
+    /*
+    * Synchronization: record all the register live-outs
+    */
+    for (auto consumer : LDI->environment->consumersOf(prod))
       firstUseOfLiveouts.push_back(consumer);
-    }
 
   }
 
@@ -513,7 +513,6 @@ void ParallelizationTechnique::generateCodeToStoreLiveOutVariables (
      * TODO: Find a better place to map this single clone (perhaps when the original loop's values are cloned)
      */
     auto producer = (Instruction*)LDI->environment->producerAt(envIndex);
-    errs() << "SUSAN: liveout:" << *producer << "\n";
     if (!task->doesOriginalLiveOutHaveManyClones(producer)) {
       auto singleProducerClone = task->getCloneOfOriginalInstruction(producer);
       task->addLiveOut(producer, singleProducerClone);
@@ -570,7 +569,6 @@ void ParallelizationTechnique::generateCodeToStoreLiveOutVariables (
         auto store = (StoreInst*)liveOutBuilder.CreateStore(producerValueToStore, envPtr);
         store->removeFromParent();
         store->insertBefore(BB->getTerminator());
-        errs() << "SUSAN: created storeInst for liveout:" << *store << "\n";
       }
     }
   }

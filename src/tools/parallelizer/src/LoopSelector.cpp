@@ -38,7 +38,6 @@ namespace llvm::noelle {
       */
       auto ls = n->getLoop();
       auto optimizations = { LoopDependenceInfoOptimization::MEMORY_CLONING_ID };
-      //SUSAN: LDI is gotten for the parallelizer
       auto ldi = noelle.getLoop(ls, optimizations);
 
       /*

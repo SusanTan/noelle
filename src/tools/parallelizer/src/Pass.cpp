@@ -10,9 +10,6 @@
  */
 #include "Parallelizer.hpp"
 
-//SUSAN: temporary added lib
-#include "PDGPrinter.hpp"
-
 using namespace llvm;
 using namespace llvm::noelle;
 
@@ -59,11 +56,14 @@ bool Parallelizer::runOnModule (Module &M) {
   auto verbosity = noelle.getVerbosity();
 
 
-  //SUSAN: get SyncFunction
+  /*
+   * Synchronization: get the SyncFunction
+   */
   SyncFunction = M.getFunction("NOELLE_SyncUpParallelWorkers");
-  errs() << "SUSAN: sync function:" << *SyncFunction << "\n";
 
-  //SUSAN: collect exit points;
+  /*
+   * Synchronization: collect exit points
+   */
   for(Function &F : M){
     //if it's main, then collect the return inst
     if(F.getName() == "main"){
@@ -71,7 +71,6 @@ bool Parallelizer::runOnModule (Module &M) {
         for(Instruction &I : BB){
           if(isa<ReturnInst>(I)){
             exitPts.insert(&I);
-            errs() << "SUSAN: found exit: " << I << "\n";
           }
           if(CallInst *call = dyn_cast<CallInst>(&I)){
             if(Function *func = call->getCalledFunction())
@@ -280,7 +279,6 @@ bool Parallelizer::runOnModule (Module &M) {
     /*
     * Parallelize the loops.
     */
-    //SUSAN: LDI is used in parallelizer
     for (auto ldi : loopsToParallelize){
 
       /*

@@ -95,7 +95,6 @@ LoopDependenceInfo::LoopDependenceInfo(
   this->fetchLoopAndBBInfo(l, SE);
   auto ls = this->getLoopStructure();
   auto loopExitBlocks = ls->getLoopExitBasicBlocks();
-  //SUSAN: where loogDG is extracted from PDG
   auto DGs = this->createDGsForLoop(l, fG, DS, SE, loopAA);
   this->loopDG = DGs.first;
   auto loopSCCDAG = DGs.second;
@@ -183,7 +182,6 @@ std::pair<PDG *, SCCDAG *> LoopDependenceInfo::createDGsForLoop (
   for (auto edge : functionDG->getEdges()) {
     assert(!edge->isLoopCarriedDependence() && "Flag was already set");
   }
-  //SUSAN: creating subgraph
   auto loopDG = functionDG->createLoopsSubgraph(l);
   for (auto edge : loopDG->getEdges()) {
     assert(!edge->isLoopCarriedDependence() && "Flag was already set");

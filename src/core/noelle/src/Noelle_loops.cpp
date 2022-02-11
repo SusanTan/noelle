@@ -199,7 +199,6 @@ LoopDependenceInfo * Noelle::getLoop (
     std::unordered_set<LoopDependenceInfoOptimization> optimizations
     ) {
 
-  //SUSAN: add external edges
   /*
    * Fetch the the function dependence graph, post dominators, and scalar evolution
    */

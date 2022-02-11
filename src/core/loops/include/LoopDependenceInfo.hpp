@@ -31,7 +31,9 @@ namespace llvm::noelle {
   class LoopDependenceInfo {
     public:
 
-      //SUSAN: added DS
+      /*
+       * Synchronization: added DS for inserting SyncFunction before a dispatcher
+       */
       bool SyncFunctionInserted;
       Instruction *dispatcherInst;
 

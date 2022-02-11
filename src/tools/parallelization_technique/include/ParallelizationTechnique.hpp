@@ -57,6 +57,11 @@ namespace llvm::noelle {
       Value * getEnvArray () { return envBuilder->getEnvArray(); }
       BasicBlock *getParLoopEntryPoint () { return entryPointOfParallelizedLoop; }
       BasicBlock *getParLoopExitPoint () { return exitPointOfParallelizedLoop; }
+
+
+      /*
+      * Synchronization: record all the register live-outs as sync points
+      */
       std::vector<Value*> getLiveOutUses() {return firstUseOfLiveouts;}
 
       virtual void reset () ;

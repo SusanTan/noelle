@@ -66,10 +66,12 @@ namespace llvm::noelle {
       bool forceParallelization;
       bool forceNoSCCPartition;
 
-      //SUSAN: added data structures
+      /*
+       * Synchronization: added DS to insert SyncFunction
+       */
       Function *SyncFunction;
       std::set<Instruction*> exitPts;
-      std::set<Value *> DepExternal;
+
       /*
        * Methods
        */
