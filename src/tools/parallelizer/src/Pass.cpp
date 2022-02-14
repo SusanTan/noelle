@@ -59,37 +59,11 @@ bool Parallelizer::runOnModule (Module &M) {
   auto verbosity = noelle.getVerbosity();
 
 
-  //SUSAN: get SyncFunction
+  /*
+   * Synchronization: get sync function
+   */
   SyncFunction = M.getFunction("NOELLE_SyncUpParallelWorkers");
-  errs() << "SUSAN: sync function:" << *SyncFunction << "\n";
 
-  //SUSAN: collect exit points;
-  for(Function &F : M){
-    //if it's main, then collect the return inst
-    if(F.getName() == "main"){
-      for(BasicBlock &BB : F)
-        for(Instruction &I : BB){
-          if(isa<ReturnInst>(I)){
-            exitPts.insert(&I);
-            errs() << "SUSAN: found exit: " << I << "\n";
-          }
-          if(CallInst *call = dyn_cast<CallInst>(&I)){
-            if(Function *func = call->getCalledFunction())
-              if(func->getName() == "exit")
-                exitPts.insert(&I);
-          }
-        }
-    }
-    else{
-      for(BasicBlock &BB : F)
-        for(Instruction &I : BB){
-          if(CallInst *call = dyn_cast<CallInst>(&I))
-            if(Function *func = call->getCalledFunction())
-              if(func->getName() == "exit")
-                exitPts.insert(&I);
-        }
-    }
-  }
   /*
   * Allocate the parallelization techniques.
   */

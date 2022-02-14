@@ -239,10 +239,6 @@ namespace llvm::noelle {
     beforeDispatcherBuilder.CreateCall(SyncFunction, ArrayRef<Value *>());
   }
 
-  for(auto exit : exitPts){
-    IRBuilder<> beforeExitBuilder(exit);
-    beforeExitBuilder.CreateCall(SyncFunction, ArrayRef<Value *>());
-  }
     return true;
   }
 }

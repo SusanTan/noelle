@@ -70,7 +70,6 @@ namespace llvm::noelle {
        * Synchronization: added data structures
        */
       Function *SyncFunction;
-      std::set<Instruction*> exitPts;
 
       /*
        * Methods
