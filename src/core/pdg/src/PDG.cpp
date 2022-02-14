@@ -146,7 +146,6 @@ PDG * PDG::createLoopsSubgraph(Loop *loop) {
   /*
    * Recreate all edges connected to internal nodes of loop
    */
-  //SUSAN: seems like external edges are included
   copyEdgesInto(loopsPDG, /*linkToExternal=*/ true);
 
   return loopsPDG;

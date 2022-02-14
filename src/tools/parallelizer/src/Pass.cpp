@@ -10,7 +10,6 @@
  */
 #include "Parallelizer.hpp"
 
-//SUSAN: temporary added lib
 #include "PDGPrinter.hpp"
 
 using namespace llvm;
@@ -254,7 +253,6 @@ bool Parallelizer::runOnModule (Module &M) {
     /*
     * Parallelize the loops.
     */
-    //SUSAN: LDI is used in parallelizer
     for (auto ldi : loopsToParallelize){
 
       /*
