@@ -218,11 +218,11 @@ BasicBlock * ParallelizationTechnique::propagateLiveOutEnvironment (LoopDependen
       abort();
     }
 
-    // SUSAN: add sync function
-    for (auto consumer : LDI->environment->consumersOf(prod)){
-      errs() << "SUSAN: consumer: " << *consumer << "\n";
+    /*
+     * Synchronization: store locations of first use of liveouts outside of the parallel region
+     */
+    for (auto consumer : LDI->environment->consumersOf(prod))
       firstUseOfLiveouts.push_back(consumer);
-    }
 
   }
 
@@ -513,7 +513,6 @@ void ParallelizationTechnique::generateCodeToStoreLiveOutVariables (
      * TODO: Find a better place to map this single clone (perhaps when the original loop's values are cloned)
      */
     auto producer = (Instruction*)LDI->environment->producerAt(envIndex);
-    errs() << "SUSAN: liveout:" << *producer << "\n";
     if (!task->doesOriginalLiveOutHaveManyClones(producer)) {
       auto singleProducerClone = task->getCloneOfOriginalInstruction(producer);
       task->addLiveOut(producer, singleProducerClone);
@@ -570,7 +569,6 @@ void ParallelizationTechnique::generateCodeToStoreLiveOutVariables (
         auto store = (StoreInst*)liveOutBuilder.CreateStore(producerValueToStore, envPtr);
         store->removeFromParent();
         store->insertBefore(BB->getTerminator());
-        errs() << "SUSAN: created storeInst for liveout:" << *store << "\n";
       }
     }
   }

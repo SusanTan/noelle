@@ -230,6 +230,10 @@ namespace llvm::noelle {
       BasicBlock *entryPointOfParallelizedLoop, *exitPointOfParallelizedLoop;
       std::vector<Task *> tasks;
       int numTaskInstances;
+
+      /*
+       * Synchronization: DS to store the first uses of the liveouts
+       */
       std::vector<Value*> firstUseOfLiveouts;
 
       /*

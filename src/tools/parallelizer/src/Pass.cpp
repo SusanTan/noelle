@@ -300,18 +300,6 @@ bool Parallelizer::runOnModule (Module &M) {
         continue ;
       }
 
-      //NOTE: here the live outs are from unparallelized loop
-     // PDG *loopDG = ldi->getLoopDG();
-     // for (auto nodeI : loopDG->externalNodePairs()) {
-     //   auto externalNode = nodeI.second;
-     //   auto externalValue = externalNode->getT();
-     //   for (auto edge : externalNode->getIncomingEdges()) {
-     //     if (edge->isMemoryDependence() || edge->isControlDependence()) {
-     //       DepExternal.insert(externalValue);
-     //     }
-     //   }
-     // }
-
       /*
       * Parallelize the current loop.
       */
