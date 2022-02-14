@@ -24,7 +24,9 @@ namespace llvm::noelle {
     Heuristics *h
     ){
 
-    //SUSAN: first, SyncFunction is not inserted
+    /*
+     * Synchronization: this bool helps decide whether a function should be added before the dispatcher
+     */
     LDI->SyncFunctionInserted = false;
 
     /*
@@ -181,16 +183,13 @@ namespace llvm::noelle {
     }
 
 
-    //SUSAN: add the syncup function here
   /*
-   * Insert sync function before the first use of live-out value.
+   * SyncFunction: Insert sync function before the first use of live-out value if it wasn't inserted for reduction
    */
-
+  //NOTE: not tested in performance tests
   if(!LDI->SyncFunctionInserted){
-    if(usedTechnique->getLiveOutUses().empty())
-      errs() << "SUSAN: empty!!\n";
     for(auto liveoutUse : usedTechnique->getLiveOutUses()){
-      errs() << "SUSAN:: liveoutUse!!!!\n";
+      // If the use is a PHINode, add sync function before the terminators of predecessor blocks
       if(PHINode *use = dyn_cast<PHINode>(liveoutUse)){
         BasicBlock *BB = use->getParent();
         for (pred_iterator PI = pred_begin(BB), E = pred_end(BB); PI != E; ++PI){
@@ -201,16 +200,13 @@ namespace llvm::noelle {
         }
         LDI->SyncFunctionInserted = true;
       }
+      // else add the sync function before the use directly
       else if(Instruction *use = dyn_cast<Instruction>(liveoutUse)){
         BasicBlock *bb = use->getParent();
         BasicBlock::iterator I;
         for (I = bb->begin(); isa<PHINode>(I); ++I);
-        errs() << "SUSAN: insertPoint" << *I << "\n";
         IRBuilder<> beforeLiveOutUseBuilder(&*I);
-        errs() << "SUSAN: consumer: " << *liveoutUse << "\n";
-        //errs() << "SyncFunction " << *syncFunction << "\n";
         auto syncUpInst = beforeLiveOutUseBuilder.CreateCall(SyncFunction, ArrayRef<Value *>());
-        //errs() << "SUSAN: syncUpInst" << *syncUpInst << "\n";
         LDI->SyncFunctionInserted = true;
       }
     }
