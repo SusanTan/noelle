@@ -26,10 +26,16 @@ DOALL::DOALL (
    * Fetch the dispatcher to use to jump to a parallelized DOALL loop.
    */
   this->taskDispatcher = this->module.getFunction("NOELLE_DOALLDispatcher");
+
   if (this->taskDispatcher == nullptr){
     errs() << "NOELLE: ERROR = function NOELLE_DOALLDispatcher couldn't be found\n";
     abort();
   }
+
+  /*
+   * Synchronization: fetch synchronization function
+   */
+  this->SyncFunction = this->module.getFunction("NOELLE_SyncUpParallelWorkers");
 
   /*
    * Define the signature of the task, which will be invoked by the DOALL dispatcher.
@@ -207,9 +213,6 @@ bool DOALL::apply (
   auto loopHeader = loopStructure->getHeader();
   auto loopPreHeader = loopStructure->getPreHeader();
 
-  //SUSAN: fetch the syncfunction
-  SyncFunction = this->module.getFunction("NOELLE_SyncUpParallelWorkers");
-
   /*
    * Fetch the loop function.
    */
@@ -371,6 +374,9 @@ void DOALL::addChunkFunctionExecutionAsideOriginalLoop (
     chunkSize
   }));
 
+  /*
+   * Synchronization: record the dispatcher inst location to insert sync function
+   */
   LDI->dispatcherInst = doallCallInst;
 
   auto numThreadsUsed = doallBuilder.CreateExtractValue(doallCallInst, (uint64_t)0);
@@ -379,7 +385,6 @@ void DOALL::addChunkFunctionExecutionAsideOriginalLoop (
    * Propagate the last value of live-out variables to the code outside the parallelized loop.
    */
   auto latestBBAfterDOALLCall = this->propagateLiveOutEnvironment(LDI, numThreadsUsed);
-  errs() << "SUSAN: latestBBAfterDOALLCall" << *latestBBAfterDOALLCall << "\n";
 
 
   /*

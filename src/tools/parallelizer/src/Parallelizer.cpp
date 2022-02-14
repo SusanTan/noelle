@@ -234,6 +234,9 @@ namespace llvm::noelle {
     }
   }
 
+  /*
+   * Synchronization: add sync function before dispatcher if no sync function added because of reduction/liveouts/dependences
+   */
   if(!LDI->SyncFunctionInserted){
     IRBuilder<> beforeDispatcherBuilder(LDI->dispatcherInst);
     beforeDispatcherBuilder.CreateCall(SyncFunction, ArrayRef<Value *>());

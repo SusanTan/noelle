@@ -31,7 +31,9 @@ namespace llvm::noelle {
   class LoopDependenceInfo {
     public:
 
-      //SUSAN: added DS
+      /*
+       * Synchronization: added DS to communicate from ParallelizationTechnique to Parallelizer
+       */
       bool SyncFunctionInserted;
       Instruction *dispatcherInst;
 
