@@ -49,6 +49,9 @@ LoopEnvironment::LoopEnvironment (
      */
     for (auto edge : externalNode->getIncomingEdges()) {
       if (edge->isMemoryDependence() || edge->isControlDependence()) {
+        /*
+         * Synchronization: record external mem/ctrl dependent instruction locations
+         */
         externalDeps.insert(externalValue);
         continue;
       }

@@ -43,7 +43,9 @@ namespace llvm::noelle {
 
       bool isProducer (Value *producer) const ;
 
-      //SUSAN: added DS to store external insts that depends on the loop
+      /*
+       * Synchronization: DS for storing external mem/ctrl dependent instructions
+       */
       std::set<Value *> externalDeps;
 
     private:

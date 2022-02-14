@@ -213,12 +213,13 @@ namespace llvm::noelle {
   }
 
 
-  //SUSAN: add sync function to memory/control dependent instructions
-  //optimize: if within a basic block there are mutliple dependences, add sync function before the earliest inst
+  /*
+   * Synchronization: add sync function before mem/ctrl dependences.
+   * If a bb has multiple inserting points, insert at the earliest one
+   */
   std::set<BasicBlock *> depBBs;
   for(auto insertPt : LDI->environment->externalDeps){
     Instruction *depInst = dyn_cast<Instruction>(insertPt);
-    assert(depInst && "SUSAN: the external node isn't an instruction??\n");
     depBBs.insert(depInst->getParent());
   }
 
