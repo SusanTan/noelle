@@ -33,8 +33,11 @@ static int64_t numberOfPushes64 = 0;
 
 static ThreadPool pool{true, std::thread::hardware_concurrency()};
 
-//SUSAN: added DS
+/*
+ * Synchronization: added DS
+ */
 static std::vector<MARC::TaskFuture<void>> Futures;
+
 
 extern "C" {
 
@@ -198,7 +201,9 @@ extern "C" {
   }
 
 
-  //SUSAN: added sync function
+  /*
+   * Synchronization: seperated synchronization function from dispatcher
+   */
   void NOELLE_SyncUpParallelWorkers(){
     for (auto& future : Futures){
       future.get();
@@ -260,7 +265,9 @@ extern "C" {
      * Wait for DOALL tasks.
      */
 
-    // SUSAN: cancel this wait
+    /*
+     * Synchronization: don't sync immediately after the parallel region
+     */
     //for (auto& future : localFutures){
     //  future.get();
     //}
