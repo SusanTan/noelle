@@ -162,7 +162,9 @@ BasicBlock * ParallelizationTechnique::propagateLiveOutEnvironment (LoopDependen
     initialValues[envInd] = castToCorrectReducibleType(*builder, initialValue, producer->getType());
   }
 
-  //SUSAN: insert sync function immediately before reduction
+  /*
+   * Synchronization: add synchronization right before reduction
+   */
   if(initialValues.size()){
     builder->CreateCall(SyncFunction, ArrayRef<Value *>());
     LDI->SyncFunctionInserted = true;
@@ -194,7 +196,6 @@ BasicBlock * ParallelizationTechnique::propagateLiveOutEnvironment (LoopDependen
   for (int envInd : LDI->environment->getEnvIndicesOfLiveOutVars()) {
     auto prod = LDI->environment->producerAt(envInd);
 
-    errs() << "SUSAN: prod: " << *prod << "\n";
     /*
      * NOTE(angelo): If the environment variable isn't reduced, it is held in allocated
      * memory that needs to be loaded from in order to retrieve the value
@@ -203,7 +204,6 @@ BasicBlock * ParallelizationTechnique::propagateLiveOutEnvironment (LoopDependen
     Value *envVar;
     if (isReduced) {
       envVar = envBuilder->getAccumulatedReducableEnvVar(envInd);
-      errs() << "SUSAN: reduction envVar: " << *envVar << "\n";
     } else {
       envVar = afterReductionBuilder->CreateLoad(envBuilder->getEnvVar(envInd));
     }
