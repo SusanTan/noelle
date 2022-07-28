@@ -470,8 +470,14 @@ void DOALL::addChunkFunctionExecutionAsideOriginalLoop(LoopDependenceInfo *LDI,
       this->taskDispatcher,
       ArrayRef<Value *>(
           { tasks[0]->getTaskBody(), envPtr, numCores, chunkSize }));
-  auto numThreadsUsed =
-      doallBuilder.CreateExtractValue(doallCallInst, (uint64_t)0);
+
+  /*
+   * Synchronization: record original LS, dispatcher, numCores, memIdx
+   */
+  originalLS = LDI->getLoopStructure();
+  dispatcherInst = doallCallInst;
+  numThreadsUsed = doallBuilder.CreateExtractValue(doallCallInst, (uint64_t)0);
+  memoryIndex = doallBuilder.CreateExtractValue(doallCallInst, (uint64_t)1);
 
   /*
    * Propagate the last value of live-out variables to the code outside the

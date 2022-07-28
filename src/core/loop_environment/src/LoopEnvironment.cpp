@@ -92,7 +92,17 @@ LoopEnvironment::LoopEnvironment(PDG *loopDG,
      * Determine whether the external value is a consumer (i.e., live-out).
      */
     for (auto edge : externalNode->getIncomingEdges()) {
-      if (edge->isMemoryDependence() || edge->isControlDependence()) {
+      if (edge->isControlDependence()) {
+        continue;
+      } else if (edge->isMemoryDependence()) {
+        /*
+         * Synchronization: record external mem/ctrl dependent instruction
+         * locations
+         */
+        auto internalValue = edge->getOutgoingT();
+        errs() << "SUSAN: recording dep from: " << *internalValue << "\n";
+        errs() << "to: " << *externalValue << "\n";
+        externalDeps.insert(externalValue);
         continue;
       }
       auto internalValue = edge->getOutgoingT();

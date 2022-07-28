@@ -23,6 +23,139 @@
 
 namespace llvm::noelle {
 
+/*
+ * Syncrhonization: create three bbs for synchronization
+ */
+BasicBlock *Parallelizer::CreateSynchronization(Function *f,
+                                                IRBuilder<> builder,
+                                                BasicBlock *bbBeforeSync,
+                                                BasicBlock *originalBBAfterSync,
+                                                bool eraseTarget,
+                                                Instruction *isSyncedAlloca,
+                                                Instruction *numCoresAlloca,
+                                                Instruction *memoryIdxAlloca) {
+
+  // create a before sync BB
+  auto beforeSyncBB = BasicBlock::Create(f->getContext(), "beforeSyncBB", f);
+
+  auto bbTerminator = bbBeforeSync->getTerminator();
+  if (!eraseTarget) {
+    if (BranchInst *br = dyn_cast<BranchInst>(bbTerminator)) {
+      if (!br->isConditional())
+        builder.CreateBr(beforeSyncBB);
+      else {
+        auto cond = br->getCondition();
+        auto succ0 = br->getSuccessor(0);
+        auto succ1 = br->getSuccessor(1);
+        Instruction *newBr = nullptr;
+        if (succ0 == originalBBAfterSync)
+          newBr = builder.CreateCondBr(cond, beforeSyncBB, succ1);
+        else if (succ1 == originalBBAfterSync)
+          newBr = builder.CreateCondBr(cond, succ0, beforeSyncBB);
+
+        assert(newBr && "synchronization not linked properly\n");
+      }
+    } else if (SwitchInst *sw = dyn_cast<SwitchInst>(bbTerminator)) {
+      for (SwitchInst::CaseIt i = sw->case_begin(), e = sw->case_end(); i != e;
+           ++i) {
+        ConstantInt *CaseVal = i->getCaseValue();
+        BasicBlock *succ = i->getCaseSuccessor();
+        if (succ == originalBBAfterSync) {
+          sw->removeCase(i);
+          sw->addCase(CaseVal, beforeSyncBB);
+        }
+      }
+    }
+  } else
+    builder.CreateBr(beforeSyncBB);
+
+  if (bbTerminator != nullptr && isa<BranchInst>(bbTerminator)) {
+    bbTerminator->eraseFromParent();
+  }
+
+  // create check for whether synced or not yet
+  IRBuilder<> beforeSyncBuilder{ beforeSyncBB };
+  auto int1Ty = IntegerType::get(beforeSyncBuilder.getContext(), 1);
+  auto constantOne = ConstantInt::get(int1Ty, 1);
+  auto loadedSyncBit = beforeSyncBuilder.CreateLoad(int1Ty, isSyncedAlloca);
+  auto cmpSync = beforeSyncBuilder.CreateICmpEQ(loadedSyncBit, constantOne);
+
+  // create a sync BB
+  auto syncBB = BasicBlock::Create(f->getContext(), "SyncBB", f);
+
+  // create a BB after syncBB
+  auto afterSyncBB =
+      BasicBlock::Create(f->getContext(), "afterSyncBB", f, syncBB);
+
+  // create branch based on whether synced or not
+  beforeSyncBuilder.CreateCondBr(cmpSync, afterSyncBB, syncBB);
+
+  // syncBB: call SyncFunction in syncBB
+  IRBuilder<> syncBBBuilder{ syncBB };
+  auto int32Ty = IntegerType::get(syncBBBuilder.getContext(), 32);
+  auto int64Ty = IntegerType::get(syncBBBuilder.getContext(), 64);
+  auto numThreadsUsed = syncBBBuilder.CreateLoad(int32Ty, numCoresAlloca);
+  auto memoryIndex = syncBBBuilder.CreateLoad(int64Ty, memoryIdxAlloca);
+  syncBBBuilder.CreateCall(SyncFunction,
+                           ArrayRef<Value *>({ numThreadsUsed, memoryIndex }));
+
+  // syncBB: store 1 to isSyncedSignal
+  int1Ty = IntegerType::get(syncBBBuilder.getContext(), 1);
+  syncBBBuilder.CreateStore(ConstantInt::get(int1Ty, 1), isSyncedAlloca);
+
+  // link syncBB to afterSyncBB
+  syncBBBuilder.CreateBr(afterSyncBB);
+
+  return afterSyncBB;
+}
+
+/*
+ * Synchronization: link the sync bbs to the rest of the program
+ */
+void Parallelizer::InsertSyncFunctionBefore(
+    BasicBlock *currBB,
+    ParallelizationTechnique *usedTechnique,
+    Function *f,
+    std::set<std::pair<BasicBlock *, BasicBlock *>> &addedSyncEdges) {
+  std::set<BasicBlock *> predBB2Remove;
+  for (pred_iterator PI = pred_begin(currBB), E = pred_end(currBB); PI != E;
+       ++PI) {
+    BasicBlock *predBB = *PI;
+    if (predBB->getParent() != f)
+      continue;
+    bool alreadyInserted = false;
+    for (auto edge : addedSyncEdges)
+      if (edge.first == predBB && edge.second == currBB) {
+        alreadyInserted = true;
+        break;
+      }
+    if (alreadyInserted)
+      continue;
+    addedSyncEdges.insert(std::make_pair(currBB, predBB));
+    auto builder = new IRBuilder<>(predBB);
+    auto afterSyncBB = CreateSynchronization(f,
+                                             *builder,
+                                             predBB,
+                                             currBB,
+                                             0,
+                                             isSyncedAlloca[usedTechnique],
+                                             numCoresAlloca[usedTechnique],
+                                             memoryIdxAlloca[usedTechnique]);
+    delete builder;
+    // link afterSyncBB to dispatcherBB
+    IRBuilder<> afterSyncBuilder(afterSyncBB);
+    afterSyncBuilder.CreateBr(currBB);
+
+    // adjust phis
+    for (auto &I : *currBB) {
+      PHINode *phi = dyn_cast<PHINode>(&I);
+      if (!phi)
+        break;
+      phi->replaceIncomingBlockWith(predBB, afterSyncBB);
+    }
+  }
+}
+
 bool Parallelizer::parallelizeLoop(LoopDependenceInfo *LDI,
                                    Noelle &par,
                                    Heuristics *h) {
@@ -38,7 +171,10 @@ bool Parallelizer::parallelizeLoop(LoopDependenceInfo *LDI,
    * Allocate the parallelization techniques.
    */
   DSWP dswp{ par, this->forceParallelization, !this->forceNoSCCPartition };
-  DOALL doall{ par };
+  /*
+   * Syncrhonization: create doall on stack
+   */
+  auto doall = new DOALL(par);
   HELIX helix{ par, this->forceParallelization };
 
   /*
@@ -90,13 +226,13 @@ bool Parallelizer::parallelizeLoop(LoopDependenceInfo *LDI,
   ParallelizationTechnique *usedTechnique = nullptr;
   if (true && par.isTransformationEnabled(DOALL_ID)
       && ltm->isTransformationEnabled(DOALL_ID)
-      && doall.canBeAppliedToLoop(LDI, h)) {
+      && doall->canBeAppliedToLoop(LDI, h)) {
 
     /*
      * Apply DOALL.
      */
-    codeModified = doall.apply(LDI, h);
-    usedTechnique = &doall;
+    codeModified = doall->apply(LDI, h);
+    usedTechnique = doall;
 
   } else if (true && par.isTransformationEnabled(HELIX_ID)
              && ltm->isTransformationEnabled(HELIX_ID)
@@ -205,6 +341,80 @@ bool Parallelizer::parallelizeLoop(LoopDependenceInfo *LDI,
   // if (verbose >= Verbosity::Maximal) {
   //   loopFunction->print(errs() << "Final printout:\n"); errs() << "\n";
   // }
+
+  /*
+   * Synchronization: collect sync insertion points
+   */
+  if (usedTechnique == doall) {
+    techniques.insert(usedTechnique);
+    std::set<BasicBlock *> insertedBlocks;
+    Value *threadsUsed = usedTechnique->getNumOfThreads();
+    Value *memoryIndex = usedTechnique->getMemoryIndex();
+    auto dispatcherInst = usedTechnique->getDispatcherInst();
+    errs() << "SUSAN: dispatcherInst: " << *dispatcherInst << "\n";
+    auto dispatcherBB = dispatcherInst->getParent();
+    Function *f = dispatcherBB->getParent();
+
+    /*
+     * Synchronization: Insert sync function before live-out
+     */
+    for (auto liveoutUse : usedTechnique->getLiveOutUses()) {
+      Instruction *liveoutInst = dyn_cast<Instruction>(liveoutUse);
+      if (!liveoutInst)
+        continue;
+      auto liveoutBB = liveoutInst->getParent();
+      BasicBlock *newInsertPt = liveoutBB;
+      if (insertedBlocks.find(newInsertPt) != insertedBlocks.end())
+        continue;
+      insertedBlocks.insert(newInsertPt);
+      errs() << "SUSAN: inserting at live-out Deps: " << *newInsertPt << "\n";
+      insertingPts.push_back(std::make_pair(newInsertPt, usedTechnique));
+    }
+
+    /*
+     * Synchronization: add sync function before mem dependences.
+     * If a bb has multiple inserting points, insert at the earliest one
+     */
+    std::set<Value *> externalDeps = LDI->getEnvironment()->getExternalDeps();
+    for (auto insertPt : externalDeps) {
+      Instruction *depInst = dyn_cast<Instruction>(insertPt);
+      errs() << "SUSAN: mem dep: " << *depInst << "\n";
+      BasicBlock *newInsertPt = depInst->getParent();
+      if (insertedBlocks.find(newInsertPt) != insertedBlocks.end())
+        continue;
+      errs() << "SUSAN: inserting at mem Deps: " << *newInsertPt << "\n";
+      insertedBlocks.insert(newInsertPt);
+      insertingPts.push_back(std::make_pair(newInsertPt, usedTechnique));
+    }
+
+    /*
+     * Synchronization: add sync function before dispatcher
+     */
+    errs() << "SUSAN: inserting at dispatch: " << *dispatcherBB << "\n";
+    if (insertedBlocks.find(dispatcherBB) == insertedBlocks.end()) {
+      insertedBlocks.insert(dispatcherBB);
+      insertingPts.push_back(std::make_pair(dispatcherBB, usedTechnique));
+    }
+
+    /*
+     * Synchronization: add sync function before exiting functions only for last
+     * parallel region
+     */
+    // for(auto ldi : treesToParallelize.back()){
+    //  if(LDI->getLoopStructure() == ldi->getLoopStructure())
+    for (auto &BB : *f)
+      for (auto &I : BB)
+        if (isa<ReturnInst>(&I)) {
+          BasicBlock *newInsertPt = &BB;
+          if (insertedBlocks.find(newInsertPt) != insertedBlocks.end())
+            continue;
+          insertedBlocks.insert(newInsertPt);
+          errs() << "SUSAN: inserting at exit: " << *newInsertPt << "\n";
+          insertingPts.push_back(std::make_pair(newInsertPt, usedTechnique));
+        }
+    //  }
+  } // end of adding sync function for doall
+
   if (verbose != Verbosity::Disabled) {
     errs() << prefix << "  The loop has been parallelized\n";
     errs() << prefix << "Exit\n";

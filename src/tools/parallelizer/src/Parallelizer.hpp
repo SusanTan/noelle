@@ -90,6 +90,30 @@ private:
    * Debug utilities
    */
   void printLoop(Loop *loop);
+
+  /*
+   * Synchronization: utils
+   */
+  Function *SyncFunction;
+  void InsertSyncFunctionBefore(
+      BasicBlock *currBB,
+      ParallelizationTechnique *usedTechnique,
+      Function *f,
+      std::set<std::pair<BasicBlock *, BasicBlock *>> &addedSyncEdges);
+  BasicBlock *CreateSynchronization(Function *f,
+                                    IRBuilder<> builder,
+                                    BasicBlock *bbBeforeSync,
+                                    BasicBlock *originalBBAfterSync,
+                                    bool eraseTarget,
+                                    Instruction *isSyncedAlloca,
+                                    Instruction *numCoresAlloca,
+                                    Instruction *memoryIdxAlloca);
+  std::vector<std::vector<LoopDependenceInfo *>> treesToParallelize;
+  std::vector<std::pair<BasicBlock *, ParallelizationTechnique *>> insertingPts;
+  std::set<ParallelizationTechnique *> techniques;
+  std::map<ParallelizationTechnique *, Instruction *> isSyncedAlloca;
+  std::map<ParallelizationTechnique *, Instruction *> numCoresAlloca;
+  std::map<ParallelizationTechnique *, Instruction *> memoryIdxAlloca;
 };
 
 } // namespace llvm::noelle

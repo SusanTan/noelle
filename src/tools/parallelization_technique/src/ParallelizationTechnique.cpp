@@ -26,7 +26,11 @@ namespace llvm::noelle {
 ParallelizationTechnique::ParallelizationTechnique(Noelle &n)
   : noelle{ n },
     tasks{},
-    envBuilder{ nullptr } {
+    envBuilder{ nullptr },
+    /*
+     * Synchronization: initialize dispatcherInst
+     */
+    dispatcherInst{ nullptr } {
   this->verbose = n.getVerbosity();
 
   return;
@@ -299,6 +303,14 @@ BasicBlock *ParallelizationTechnique::
         castToCorrectReducibleType(*builder, initialValue, producer->getType());
   }
 
+  /*
+   * Synchronization: mark whether reduction happened or not
+   */
+  isReduction = false;
+  if (initialValues.size()) {
+    isReduction = true;
+  }
+
   auto afterReductionB = this->envBuilder->reduceLiveOutVariables(
       this->entryPointOfParallelizedLoop,
       *builder,
@@ -349,6 +361,13 @@ BasicBlock *ParallelizationTechnique::
       errs() << "Loop not in LCSSA!\n";
       abort();
     }
+
+    /*
+     * Synchronization: store locations of first use of liveouts outside of the
+     * parallel region
+     */
+    for (auto consumer : LDI->getEnvironment()->consumersOf(prod))
+      LiveOutUses.push_back(consumer);
   }
 
   /*

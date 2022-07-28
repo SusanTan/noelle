@@ -72,6 +72,11 @@ bool Parallelizer::runOnModule(Module &M) {
   auto verbosity = noelle.getVerbosity();
 
   /*
+   * Synchronization: get sync function
+   */
+  SyncFunction = M.getFunction("NOELLE_SyncUpParallelWorkers");
+
+  /*
    * Collect information about C++ code we link parallelized loops with.
    */
   errs() << "Parallelizer:  Analyzing the module " << M.getName() << "\n";
@@ -194,11 +199,84 @@ bool Parallelizer::runOnModule(Module &M) {
   }
 
   /*
+   * Synchronization: create the bits and reduction sync
+   */
+  std::set<std::pair<BasicBlock *, BasicBlock *>> addedSyncEdges;
+  for (auto technique : techniques) {
+    errs() << "am I here??";
+    auto dispatcherInst = technique->getDispatcherInst();
+    errs() << "SUSAN: dispatcherInst Pass.cpp: " << *dispatcherInst << "\n";
+    auto f = dispatcherInst->getParent()->getParent();
+    /*
+     * Synchronization: create a bit for this dispatch indicating whether it's
+     * synced create variable for numCores and memoryIdx
+     */
+    IRBuilder<> entryBuilder(f->getEntryBlock().getTerminator());
+    auto int1Ty = IntegerType::get(entryBuilder.getContext(), 1);
+    isSyncedAlloca[technique] = entryBuilder.CreateAlloca(int1Ty);
+    entryBuilder.CreateStore(ConstantInt::get(int1Ty, 1),
+                             isSyncedAlloca[technique]);
+    auto int32Ty = IntegerType::get(entryBuilder.getContext(), 32);
+    numCoresAlloca[technique] = entryBuilder.CreateAlloca(int32Ty);
+    auto int64Ty = IntegerType::get(entryBuilder.getContext(), 64);
+    memoryIdxAlloca[technique] = entryBuilder.CreateAlloca(int64Ty);
+
+    /*
+     * Synchronization: store 0 to isSynced after dispatch inst
+     */
+    IRBuilder<> dispatcherBuilder(dispatcherInst->getNextNonDebugInstruction());
+    dispatcherBuilder.CreateStore(ConstantInt::get(int1Ty, 0),
+                                  isSyncedAlloca[technique]);
+
+    /*
+     * Synchronization: store call to dispatcherinst and use in Parallelizer to
+     * insert synchronization calls
+     */
+    auto numThreadsUsed = cast<Instruction>(technique->getNumOfThreads());
+    IRBuilder<> ThreadNumBuilder(numThreadsUsed->getNextNonDebugInstruction());
+    ThreadNumBuilder.CreateStore(numThreadsUsed, numCoresAlloca[technique]);
+
+    auto memIdx = cast<Instruction>(technique->getMemoryIndex());
+    IRBuilder<> memIdxBuilder(memIdx->getNextNonDebugInstruction());
+    memIdxBuilder.CreateStore(memIdx, memoryIdxAlloca[technique]);
+
+    // insert sync before reduction
+    if (technique->Reduced()) {
+      IRBuilder<> *reduceSyncBuilder =
+          new IRBuilder(dispatcherInst->getParent());
+      InsertSyncFunctionBefore(
+          dispatcherInst->getParent()->getSingleSuccessor(),
+          technique,
+          f,
+          addedSyncEdges);
+      delete reduceSyncBuilder;
+    }
+  }
+
+  for (auto [bb, usedTechnique] : insertingPts) {
+    // get insert pt
+    auto insertPt = bb;
+    for (auto technique : techniques) {
+      auto LS = technique->getOriginalLS();
+      if (LS->isIncluded(bb)) {
+        errs() << "SUSAN: found dep in parallel region:" << *bb << "\n";
+        insertPt = technique->getDispatcherInst()->getParent();
+      }
+    }
+    errs() << "SUSAN: inserting sync function at bb: " << *insertPt << "\n";
+    auto f = insertPt->getParent();
+    InsertSyncFunctionBefore(insertPt, usedTechnique, f, addedSyncEdges);
+  }
+
+  /*
    * Free the memory.
    */
   for (auto indexLoopPair : loopParallelizationOrder) {
     delete indexLoopPair.second;
   }
+
+  for (auto technique : techniques)
+    delete technique;
 
   errs() << "Parallelizer: Exit\n";
   return modified;

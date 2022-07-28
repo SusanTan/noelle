@@ -62,6 +62,31 @@ public:
   BasicBlock *getParLoopExitPoint(void) const;
 
   /*
+   * Synchronization utilities
+   */
+  bool isSyncFunctionInserted() {
+    return SyncFunctionInserted;
+  }
+  std::vector<Value *> getLiveOutUses() {
+    return LiveOutUses;
+  }
+  Instruction *getDispatcherInst() {
+    return dispatcherInst;
+  }
+  Value *getNumOfThreads() {
+    return numThreadsUsed;
+  }
+  Value *getMemoryIndex() {
+    return memoryIndex;
+  }
+  bool Reduced() {
+    return isReduction;
+  }
+  LoopStructure *getOriginalLS() {
+    return originalLS;
+  }
+
+  /*
    * Destructor.
    */
   virtual ~ParallelizationTechnique();
@@ -213,6 +238,17 @@ protected:
   BasicBlock *entryPointOfParallelizedLoop, *exitPointOfParallelizedLoop;
   std::vector<Task *> tasks;
   uint32_t numTaskInstances;
+
+  /*
+   * Synchronization: related fields
+   */
+  std::vector<Value *> LiveOutUses;
+  bool SyncFunctionInserted;
+  Instruction *dispatcherInst;
+  Value *numThreadsUsed;
+  Value *memoryIndex;
+  LoopStructure *originalLS;
+  bool isReduction;
 };
 
 } // namespace llvm::noelle

@@ -63,11 +63,22 @@ public:
 
   uint64_t addLiveInValue(Value *newLiveInValue,
                           const std::unordered_set<Instruction *> &consumers);
+  /*
+   * Synchronization: getexternalDeps to insert sync function
+   */
+  std::set<Value *> getExternalDeps() {
+    return externalDeps;
+  }
 
 private:
   uint64_t addLiveInProducer(Value *producer);
   void addLiveOutProducer(Value *producer);
   uint64_t addProducer(Value *producer, bool liveIn);
+
+  /*
+   * Synchronization: store externalDeps
+   */
+  std::set<Value *> externalDeps;
 
   /*
    * DEPRECATED(angelo): use of this API suggests poor environment
