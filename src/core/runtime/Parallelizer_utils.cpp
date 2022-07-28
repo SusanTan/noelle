@@ -58,6 +58,18 @@ public:
 
   DOALL_args_t *getDOALLArgs(uint32_t cores, uint32_t *index);
 
+  /*
+   * Synchronization:
+   * 1. API to get args without initializing the memory
+   * 2. currently used thread count
+   * 3. memory index to args
+   * 4. A bit to prevent syncing multiple times
+   */
+  DOALL_args_t * getDOALLArgs (uint64_t index);
+  int32_t currNumThreadsUsed;
+  uint64_t currMemoryIndex;
+  bool syncAlready;
+
   void releaseDOALLArgs(uint32_t index);
 
   ThreadPoolForCSingleQueue *virgil;
@@ -103,7 +115,11 @@ extern "C" {
 class DispatcherInfo {
 public:
   int32_t numberOfThreadsUsed;
-  int64_t unusedVariableToPreventOptIfStructHasOnlyOneVariable;
+  /*
+   * Synchronization : used the second filed to pass memIndex
+   */
+  //int64_t unusedVariableToPreventOptIfStructHasOnlyOneVariable;
+  uint64_t memoryIndex;
 };
 
 /*
@@ -211,6 +227,37 @@ void queuePop64(ThreadSafeQueue<int64_t> *queue, int64_t *val) {
   return;
 }
 
+/*
+ * Synchronization: seperate synchronization from dispatcher
+ */
+void NOELLE_SyncUpParallelWorkers(int32_t numThreadsUsed, uint64_t memoryIndex){
+
+  //TODO: statically guarantee that only sync once
+  auto argsForAllCores = runtime.getDOALLArgs(memoryIndex);
+  /*
+   * Wait for the remaining DOALL tasks.
+   */
+  #ifdef RUNTIME_PROFILE
+  auto clocks_before_join = rdtsc_s();
+  #endif
+  for (auto i = 0; i < (numThreadsUsed - 1); ++i) {
+    pthread_spin_lock(&(argsForAllCores[i].endLock));
+  }
+  #ifdef RUNTIME_PRINT
+  std::cerr << "All tasks completed" << std::endl;
+  #endif
+  #ifdef RUNTIME_PROFILE
+  auto clocks_after_join = rdtsc_e();
+  auto clocks_before_cleanup = rdtsc_s();
+  #endif
+
+  /*
+   * Free the cores and memory.
+   */
+  runtime.releaseCores(numThreadsUsed);
+  runtime.releaseDOALLArgs(memoryIndex);
+}
+
 /**********************************************************************
  *                DOALL
  **********************************************************************/
@@ -313,33 +360,42 @@ DispatcherInfo NOELLE_DOALLDispatcher(
   parallelizedLoop(env, numCores - 1, numCores, chunkSize);
 
 /*
+ * Synchronization: disable synchronization in dispatcher
+ */
+/*
  * Wait for the remaining DOALL tasks.
  */
-#ifdef RUNTIME_PROFILE
-  auto clocks_before_join = rdtsc_s();
-#endif
-  for (auto i = 0; i < (numCores - 1); ++i) {
-    pthread_spin_lock(&(argsForAllCores[i].endLock));
-  }
-#ifdef RUNTIME_PRINT
-  std::cerr << "All tasks completed" << std::endl;
-#endif
-#ifdef RUNTIME_PROFILE
-  auto clocks_after_join = rdtsc_e();
-  auto clocks_before_cleanup = rdtsc_s();
-#endif
-
-  /*
-   * Free the cores and memory.
-   */
-  runtime.releaseCores(numCores);
-  runtime.releaseDOALLArgs(doallMemoryIndex);
+//#ifdef RUNTIME_PROFILE
+//  auto clocks_before_join = rdtsc_s();
+//#endif
+//  for (auto i = 0; i < (numCores - 1); ++i) {
+//    pthread_spin_lock(&(argsForAllCores[i].endLock));
+//  }
+//#ifdef RUNTIME_PRINT
+//  std::cerr << "All tasks completed" << std::endl;
+//#endif
+//#ifdef RUNTIME_PROFILE
+//  auto clocks_after_join = rdtsc_e();
+//  auto clocks_before_cleanup = rdtsc_s();
+//#endif
+//
+//  /*
+//   * Free the cores and memory.
+//   */
+//  runtime.releaseCores(numCores);
+//  runtime.releaseDOALLArgs(doallMemoryIndex);
 
   /*
    * Prepare the return value.
    */
   DispatcherInfo dispatcherInfo;
   dispatcherInfo.numberOfThreadsUsed = numCores;
+
+  /*
+   * Synchronization: return memory index
+   */
+  dispatcherInfo.memoryIndex = doallMemoryIndex;
+
 #ifdef RUNTIME_PROFILE
   auto clocks_after_cleanup = rdtsc_s();
   pthread_spin_lock(&printLock);
