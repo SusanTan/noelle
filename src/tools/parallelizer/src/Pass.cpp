@@ -242,6 +242,8 @@ bool Parallelizer::runOnModule(Module &M) {
 
     // insert sync before reduction
     if (technique->Reduced()) {
+      errs() << "dispatcher's single successor:"
+             << *(dispatcherInst->getParent()->getSingleSuccessor());
       IRBuilder<> *reduceSyncBuilder =
           new IRBuilder(dispatcherInst->getParent());
       InsertSyncFunctionBefore(

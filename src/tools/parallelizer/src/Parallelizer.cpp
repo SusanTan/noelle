@@ -121,8 +121,11 @@ void Parallelizer::InsertSyncFunctionBefore(
   for (pred_iterator PI = pred_begin(currBB), E = pred_end(currBB); PI != E;
        ++PI) {
     BasicBlock *predBB = *PI;
+    if (predBB == currBB)
+      continue;
     if (predBB->getParent() != f)
       continue;
+    errs() << "SUSAN: pred" << *predBB << "\n";
     bool alreadyInserted = false;
     for (auto edge : addedSyncEdges)
       if (edge.first == predBB && edge.second == currBB) {
@@ -133,6 +136,7 @@ void Parallelizer::InsertSyncFunctionBefore(
       continue;
     addedSyncEdges.insert(std::make_pair(currBB, predBB));
     auto builder = new IRBuilder<>(predBB);
+    errs() << "SUSAN: pred" << *predBB << "\n";
     auto afterSyncBB = CreateSynchronization(f,
                                              *builder,
                                              predBB,
@@ -141,6 +145,7 @@ void Parallelizer::InsertSyncFunctionBefore(
                                              isSyncedAlloca[usedTechnique],
                                              numCoresAlloca[usedTechnique],
                                              memoryIdxAlloca[usedTechnique]);
+    errs() << "SUSAN: afterSyncBB: " << *afterSyncBB << "\n";
     delete builder;
     // link afterSyncBB to dispatcherBB
     IRBuilder<> afterSyncBuilder(afterSyncBB);
