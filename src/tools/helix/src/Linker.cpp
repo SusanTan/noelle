@@ -79,6 +79,12 @@ void HELIX::addChunkFunctionExecutionAsideOriginalLoop(
                           loopCarriedEnvPtr,
                           numCores,
                           numOfSS }));
+
+  /*
+   * Synchronization: connection created dependence with the original dependence
+   */
+  dispatcherInst = runtimeCall;
+  originalLS = LDI->getLoopStructure();
   auto numThreadsUsed =
       helixBuilder.CreateExtractValue(runtimeCall, (uint64_t)0);
 

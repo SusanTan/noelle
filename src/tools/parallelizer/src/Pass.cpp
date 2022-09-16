@@ -203,7 +203,6 @@ bool Parallelizer::runOnModule(Module &M) {
    */
   std::set<std::pair<BasicBlock *, BasicBlock *>> addedSyncEdges;
   for (auto technique : techniques) {
-    errs() << "am I here??";
     auto dispatcherInst = technique->getDispatcherInst();
     errs() << "SUSAN: dispatcherInst Pass.cpp: " << *dispatcherInst << "\n";
     auto f = dispatcherInst->getParent()->getParent();
@@ -258,8 +257,12 @@ bool Parallelizer::runOnModule(Module &M) {
   for (auto [bb, usedTechnique] : insertingPts) {
     // get insert pt
     auto insertPt = bb;
-    for (auto technique : techniques) {
+    auto allTechniques(techniques);
+    allTechniques.insert(otherTechniques.begin(), otherTechniques.end());
+    for (auto technique : allTechniques) {
       auto LS = technique->getOriginalLS();
+      if (!LS)
+        errs() << "SUSAN: LS NOT FOUND\n";
       if (LS->isIncluded(bb)) {
         errs() << "SUSAN: found dep in parallel region:" << *bb << "\n";
         insertPt = technique->getDispatcherInst()->getParent();
@@ -278,6 +281,9 @@ bool Parallelizer::runOnModule(Module &M) {
   }
 
   for (auto technique : techniques)
+    delete technique;
+
+  for (auto technique : otherTechniques)
     delete technique;
 
   errs() << "Parallelizer: Exit\n";

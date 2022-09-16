@@ -175,12 +175,13 @@ bool Parallelizer::parallelizeLoop(LoopDependenceInfo *LDI,
   /*
    * Allocate the parallelization techniques.
    */
-  DSWP dswp{ par, this->forceParallelization, !this->forceNoSCCPartition };
   /*
-   * Syncrhonization: create doall on stack
+   * Syncrhonization: create all techniques on heap
    */
   auto doall = new DOALL(par);
-  HELIX helix{ par, this->forceParallelization };
+  auto helix = new HELIX(par, this->forceParallelization);
+  auto dswp =
+      new DSWP(par, this->forceParallelization, !this->forceNoSCCPartition);
 
   /*
    * Fetch the verbosity level.
@@ -241,14 +242,14 @@ bool Parallelizer::parallelizeLoop(LoopDependenceInfo *LDI,
 
   } else if (true && par.isTransformationEnabled(HELIX_ID)
              && ltm->isTransformationEnabled(HELIX_ID)
-             && helix.canBeAppliedToLoop(LDI, h)) {
+             && helix->canBeAppliedToLoop(LDI, h)) {
 
     /*
      * Apply HELIX
      */
-    codeModified = helix.apply(LDI, h);
+    codeModified = helix->apply(LDI, h);
 
-    auto function = helix.getTaskFunction();
+    auto function = helix->getTaskFunction();
     auto &LI = getAnalysis<LoopInfoWrapperPass>(*function).getLoopInfo();
     auto &PDT =
         getAnalysis<PostDominatorTreeWrapperPass>(*function).getPostDomTree();
@@ -259,7 +260,7 @@ bool Parallelizer::parallelizeLoop(LoopDependenceInfo *LDI,
     }
 
     auto taskFunctionDG =
-        helix.constructTaskInternalDependenceGraphFromOriginalLoopDG(LDI, PDT);
+        helix->constructTaskInternalDependenceGraphFromOriginalLoopDG(LDI, PDT);
 
     if (par.getVerbosity() >= Verbosity::Maximal) {
       errs() << "HELIX:  Constructing task loop dependence info\n";
@@ -281,18 +282,18 @@ bool Parallelizer::parallelizeLoop(LoopDependenceInfo *LDI,
         par.canFloatsBeConsideredRealNumbers());
     newLDI->copyParallelizationOptionsFrom(LDI);
 
-    codeModified = helix.apply(newLDI, h);
-    usedTechnique = &helix;
+    codeModified = helix->apply(newLDI, h);
+    usedTechnique = helix;
 
   } else if (true && par.isTransformationEnabled(DSWP_ID)
              && ltm->isTransformationEnabled(DSWP_ID)
-             && dswp.canBeAppliedToLoop(LDI, h)) {
+             && dswp->canBeAppliedToLoop(LDI, h)) {
 
     /*
      * Apply DSWP.
      */
-    codeModified = dswp.apply(LDI, h);
-    usedTechnique = &dswp;
+    codeModified = dswp->apply(LDI, h);
+    usedTechnique = dswp;
   }
 
   /*
@@ -419,6 +420,9 @@ bool Parallelizer::parallelizeLoop(LoopDependenceInfo *LDI,
         }
     //  }
   } // end of adding sync function for doall
+  else {
+    otherTechniques.insert(usedTechnique);
+  }
 
   if (verbose != Verbosity::Disabled) {
     errs() << prefix << "  The loop has been parallelized\n";

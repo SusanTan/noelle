@@ -111,6 +111,7 @@ private:
   std::vector<std::vector<LoopDependenceInfo *>> treesToParallelize;
   std::vector<std::pair<BasicBlock *, ParallelizationTechnique *>> insertingPts;
   std::set<ParallelizationTechnique *> techniques;
+  std::set<ParallelizationTechnique *> otherTechniques;
   std::map<ParallelizationTechnique *, Instruction *> isSyncedAlloca;
   std::map<ParallelizationTechnique *, Instruction *> numCoresAlloca;
   std::map<ParallelizationTechnique *, Instruction *> memoryIdxAlloca;

@@ -179,6 +179,11 @@ void DSWP::createPipelineFromStages(LoopDependenceInfo *LDI, Noelle &par) {
       taskDispatcher,
       ArrayRef<Value *>(
           { envPtr, queueSizesPtr, stagesPtr, stagesCount, queuesCount }));
+  /*
+   * Synchronization: connection created dependence with the original dependence
+   */
+  dispatcherInst = runtimeCall;
+  originalLS = LDI->getLoopStructure();
   auto numThreadsUsed = builder.CreateExtractValue(runtimeCall, (uint64_t)0);
 
   /*
