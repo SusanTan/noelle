@@ -55,13 +55,16 @@ all: baseline $(OPTIMIZED)
 	$(CPP) $(INCLUDES) $(FRONTEND_FLAGS) -c $< -o $@
 	opt $(PRE_MIDDLEEND_OPTIONS) $@ -o $@
 
+plain.bc: test.bc
+	$(CPP) -O2 -c -emit-llvm $^ -o $@
+
 baseline: baseline.bc
 	$(CPP) $(OPT_LEVEL) $^ -o $@
 
 Parallelizer_utils.bc: Parallelizer_utils.cpp
 	$(CPP) $(RUNTIME_CFLAGS) $(INCLUDES) -std=c++14 -emit-llvm $(OPT_LEVEL) -c $^ -o $@
 
-$(OPTIMIZED): test_parallelized.bc
+$(OPTIMIZED): test_parallelized.bc 
 	$(CPP) -std=c++14 -pthreads $(OPT_LEVEL) $< $(LIBS) -o $@
 
 $(OPTIMIZED_AUTOTUNED): test_parallelized_autotuned.bc
@@ -69,6 +72,9 @@ $(OPTIMIZED_AUTOTUNED): test_parallelized_autotuned.bc
 
 test_parallelized.bc: baseline_with_metadata.bc Parallelizer_utils.bc
 	noelle-parallelizer $< -o $@ $(NOELLE_OPTIONS) $(PARALLELIZATION_OPTIONS)
+
+splendid_input.bc: baseline_with_metadata.bc Parallelizer_utils.bc plain.bc
+	noelle-parallelizer-splendid $< plain.bc -o $@ $(NOELLE_OPTIONS) $(PARALLELIZATION_OPTIONS)
 
 test_parallelized_autotuned.bc: baseline_with_metadata.bc input.txt Parallelizer_utils.bc
 	noelle-parallelizer-autotuner --parallelizer-args="$< -o $@ $(NOELLE_OPTIONS) $(PARALLELIZATION_OPTIONS)" --libs="$(LIBS)" --input="$(INPUT)" --autotuner-time="$(TIME)" --autotuner-numconf="$(NUM_CONF)" --autotuner-seedconf="$(SEED_CONF)" $(NOSEARCHSPACE) $(NODOALLFILTERING) $(NODOALLTIMEFILTERING)
@@ -101,7 +107,7 @@ baseline_pre_prof: baseline_pre.bc
 input.txt:
 	@../../scripts/create_input.sh $@
 
-test_correctness: input.txt baseline $(OPTIMIZED)
+test_correctness: input.txt baseline $(OPTIMIZED) splendid_input.bc
 	@../../scripts/test_correctness.sh $(NUM_RUNS)
 
 clean:
