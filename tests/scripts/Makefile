@@ -56,7 +56,7 @@ all: baseline $(OPTIMIZED)
 	opt $(PRE_MIDDLEEND_OPTIONS) $@ -o $@
 
 plain.bc: test.bc
-	$(CPP) -O2 -c -emit-llvm $^ -o $@
+	$(CPP) -O3 -c -emit-llvm $^ -o $@
 
 baseline: baseline.bc
 	$(CPP) $(OPT_LEVEL) $^ -o $@
