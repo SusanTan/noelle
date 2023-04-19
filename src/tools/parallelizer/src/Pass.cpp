@@ -26,6 +26,11 @@ namespace llvm::noelle {
 /*
  * Options of the Parallelizer pass.
  */
+static cl::opt<bool> GenerateSPLENDIDInput(
+    "noelle-generate-splendid-input",
+    cl::ZeroOrMore,
+    cl::Hidden,
+    cl::desc("Generate SPLENDID inputs instead of actual parallelization"));
 static cl::opt<bool> ForceParallelization(
     "noelle-parallelizer-force",
     cl::ZeroOrMore,
@@ -39,6 +44,7 @@ static cl::opt<bool> ForceNoSCCPartition(
 
 Parallelizer::Parallelizer()
   : ModulePass{ ID },
+    generateSPLENDIDInput{ false },
     forceParallelization{ false },
     forceNoSCCPartition{ false } {
 
@@ -46,6 +52,7 @@ Parallelizer::Parallelizer()
 }
 
 bool Parallelizer::doInitialization(Module &M) {
+  this->generateSPLENDIDInput = (GenerateSPLENDIDInput.getNumOccurrences() > 0);
   this->forceParallelization = (ForceParallelization.getNumOccurrences() > 0);
   this->forceNoSCCPartition = (ForceNoSCCPartition.getNumOccurrences() > 0);
 
@@ -127,6 +134,7 @@ bool Parallelizer::runOnModule(Module &M) {
   auto modified = false;
   std::unordered_map<BasicBlock *, bool> modifiedBBs{};
   std::unordered_set<Function *> modifiedFunctions;
+  uint32_t parallelizedIndex = 0;
   for (auto indexLoopPair : loopParallelizationOrder) {
     auto ldi = indexLoopPair.second;
 
@@ -164,7 +172,11 @@ bool Parallelizer::runOnModule(Module &M) {
     /*
      * Parallelize the current loop.
      */
-    auto loopIsParallelized = this->parallelizeLoop(ldi, noelle, heuristics);
+    mm->addMetadata(ls,
+                    "splendid.parallelized.loop",
+                    std::to_string(parallelizedIndex++));
+    auto loopIsParallelized =
+        this->parallelizeLoop(ldi, noelle, heuristics, mm);
 
     /*
      * Keep track of the parallelization.

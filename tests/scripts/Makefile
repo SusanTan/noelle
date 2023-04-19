@@ -15,6 +15,7 @@ RUNTIME_CFLAGS="-DDEBUG"
 # Parallelization options
 # 	- To dump the PDG: -noelle-pdg-dump
 PARALLELIZATION_OPTIONS=-alloc-aa-verbose=1 -noelle-parallelizer-force
+SPLENDID_OPTIONS=-noelle-generate-splendid-input -alloc-aa-verbose=1 -noelle-parallelizer-force -noelle-disable-helix -noelle-disable-dswp
 NOELLE_OPTIONS=-noelle-pdg-verbose=1 -noelle-verbose=2 -noelle-min-hot=0 -noelle-inliner-avoid-hoist-to-main
 TOOLS_OPTIONS=
 OPT_LEVEL=-O3
@@ -73,8 +74,8 @@ $(OPTIMIZED_AUTOTUNED): test_parallelized_autotuned.bc
 test_parallelized.bc: baseline_with_metadata.bc Parallelizer_utils.bc
 	noelle-parallelizer $< -o $@ $(NOELLE_OPTIONS) $(PARALLELIZATION_OPTIONS)
 
-splendid_input.bc: baseline_with_metadata.bc Parallelizer_utils.bc plain.bc
-	noelle-parallelizer-splendid $< plain.bc -o $@ $(NOELLE_OPTIONS) $(PARALLELIZATION_OPTIONS)
+splendid_input.bc: baseline_with_metadata.bc Parallelizer_utils.bc
+	noelle-parallelizer-splendid $< -o $@ $(NOELLE_OPTIONS) $(SPLENDID_OPTIONS)
 
 test_parallelized_autotuned.bc: baseline_with_metadata.bc input.txt Parallelizer_utils.bc
 	noelle-parallelizer-autotuner --parallelizer-args="$< -o $@ $(NOELLE_OPTIONS) $(PARALLELIZATION_OPTIONS)" --libs="$(LIBS)" --input="$(INPUT)" --autotuner-time="$(TIME)" --autotuner-numconf="$(NUM_CONF)" --autotuner-seedconf="$(SEED_CONF)" $(NOSEARCHSPACE) $(NODOALLFILTERING) $(NODOALLTIMEFILTERING)

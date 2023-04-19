@@ -26,18 +26,27 @@ namespace llvm::noelle {
 /*
  * Options of the Planner pass.
  */
+static cl::opt<bool> GenerateSPLENDIDInput(
+    "noelle-generate-splendid-input",
+    cl::ZeroOrMore,
+    cl::Hidden,
+    cl::desc("Generate SPLENDID inputs instead of actual parallelization"));
 static cl::opt<bool> ForceParallelizationPlanner(
     "noelle-parallelizer-force",
     cl::ZeroOrMore,
     cl::Hidden,
     cl::desc("Force the parallelization"));
 
-Planner::Planner() : ModulePass{ ID }, forceParallelization{ false } {
+Planner::Planner()
+  : ModulePass{ ID },
+    generateSPLENDIDInput{ false },
+    forceParallelization{ false } {
 
   return;
 }
 
 bool Planner::doInitialization(Module &M) {
+  this->generateSPLENDIDInput = (GenerateSPLENDIDInput.getNumOccurrences() > 0);
   this->forceParallelization =
       (ForceParallelizationPlanner.getNumOccurrences() > 0);
 

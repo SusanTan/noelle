@@ -75,11 +75,11 @@ fi
 #eval $cmdToExecute ;
 #
 # Run the enablers
-if test "$enableEnablers" == "1" ; then
-  cmdToExecute="noelle-enable $notOptions $notOptions $options"
-  echo $cmdToExecute ;
-  eval $cmdToExecute ;
-fi
+#if test "$enableEnablers" == "1" ; then
+#  cmdToExecute="noelle-enable $notOptions $notOptions $options"
+#  echo $cmdToExecute ;
+#  eval $cmdToExecute ;
+#fi
 
 ## Normalize the code
 #cmdToExecute="noelle-simplification $notOptions -o $notOptions"

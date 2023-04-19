@@ -54,13 +54,17 @@ private:
   /*
    * Fields
    */
+  bool generateSPLENDIDInput;
   bool forceParallelization;
   bool forceNoSCCPartition;
 
   /*
    * Methods
    */
-  bool parallelizeLoop(LoopDependenceInfo *LDI, Noelle &par, Heuristics *h);
+  bool parallelizeLoop(LoopDependenceInfo *LDI,
+                       Noelle &par,
+                       Heuristics *h,
+                       MetadataManager *mm);
 
   std::vector<LoopDependenceInfo *> getLoopsToParallelize(Module &M,
                                                           Noelle &par);

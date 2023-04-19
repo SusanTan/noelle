@@ -20,12 +20,14 @@
  OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "Parallelizer.hpp"
+#include "noelle/core/MetadataManager.hpp"
 
 namespace llvm::noelle {
 
 bool Parallelizer::parallelizeLoop(LoopDependenceInfo *LDI,
                                    Noelle &par,
-                                   Heuristics *h) {
+                                   Heuristics *h,
+                                   MetadataManager *mm) {
   auto prefix = "Parallelizer: parallelizerLoop: ";
 
   /*
@@ -125,9 +127,13 @@ bool Parallelizer::parallelizeLoop(LoopDependenceInfo *LDI,
     /*
      * Apply DOALL.
      */
-    codeModified = doall.apply(LDI, h);
+    if (generateSPLENDIDInput) {
+      mm->addMetadata(loopStructure, "splendid.doall.loop", std::to_string(0));
+    } else {
+      codeModified = doall.apply(LDI, h);
+    }
+    codeModified = true;
     usedTechnique = &doall;
-
   } else if (true && par.isTransformationEnabled(HELIX_ID)
              && ltm->isTransformationEnabled(HELIX_ID)
              && helix.canBeAppliedToLoop(LDI, h)) {
@@ -135,46 +141,52 @@ bool Parallelizer::parallelizeLoop(LoopDependenceInfo *LDI,
     /*
      * Apply HELIX
      */
-    codeModified = helix.apply(LDI, h);
+    if (generateSPLENDIDInput) {
+      mm->addMetadata(loopStructure, "splendid.helix.loop", std::to_string(0));
+    } else {
+      codeModified = helix.apply(LDI, h);
 
-    auto function = helix.getTaskFunction();
-    auto &LI = getAnalysis<LoopInfoWrapperPass>(*function).getLoopInfo();
-    auto &PDT =
-        getAnalysis<PostDominatorTreeWrapperPass>(*function).getPostDomTree();
-    auto &SE = getAnalysis<ScalarEvolutionWrapperPass>(*function).getSE();
+      auto function = helix.getTaskFunction();
+      auto &LI = getAnalysis<LoopInfoWrapperPass>(*function).getLoopInfo();
+      auto &PDT =
+          getAnalysis<PostDominatorTreeWrapperPass>(*function).getPostDomTree();
+      auto &SE = getAnalysis<ScalarEvolutionWrapperPass>(*function).getSE();
 
-    if (par.getVerbosity() >= Verbosity::Maximal) {
-      errs() << "HELIX:  Constructing task dependence graph\n";
+      if (par.getVerbosity() >= Verbosity::Maximal) {
+        errs() << "HELIX:  Constructing task dependence graph\n";
+      }
+
+      auto taskFunctionDG =
+          helix.constructTaskInternalDependenceGraphFromOriginalLoopDG(LDI,
+                                                                       PDT);
+
+      if (par.getVerbosity() >= Verbosity::Maximal) {
+        errs() << "HELIX:  Constructing task loop dependence info\n";
+      }
+
+      auto DS = par.getDominators(function);
+      auto l = LI.getLoopsInPreorder()[0];
+      auto newLoops = par.getLoopStructures(function, 0);
+      auto newForest = par.organizeLoopsInTheirNestingForest(*newLoops);
+      auto newLoopNode =
+          newForest->getInnermostLoopThatContains(l->getHeader());
+      assert(newLoopNode != nullptr);
+      auto lto = LDI->getLoopTransformationsManager();
+      auto newLDI = new LoopDependenceInfo(
+          par.getCompilationOptionsManager(),
+          taskFunctionDG,
+          newLoopNode,
+          l,
+          *DS,
+          SE,
+          par.getCompilationOptionsManager()->getMaximumNumberOfCores(),
+          lto->getOptimizationsEnabled(),
+          false,
+          lto->getChunkSize());
+      codeModified = helix.apply(newLDI, h);
     }
-
-    auto taskFunctionDG =
-        helix.constructTaskInternalDependenceGraphFromOriginalLoopDG(LDI, PDT);
-
-    if (par.getVerbosity() >= Verbosity::Maximal) {
-      errs() << "HELIX:  Constructing task loop dependence info\n";
-    }
-
-    auto DS = par.getDominators(function);
-    auto l = LI.getLoopsInPreorder()[0];
-    auto newLoops = par.getLoopStructures(function, 0);
-    auto newForest = par.organizeLoopsInTheirNestingForest(*newLoops);
-    auto newLoopNode = newForest->getInnermostLoopThatContains(l->getHeader());
-    assert(newLoopNode != nullptr);
-    auto lto = LDI->getLoopTransformationsManager();
-    auto newLDI = new LoopDependenceInfo(
-        par.getCompilationOptionsManager(),
-        taskFunctionDG,
-        newLoopNode,
-        l,
-        *DS,
-        SE,
-        par.getCompilationOptionsManager()->getMaximumNumberOfCores(),
-        lto->getOptimizationsEnabled(),
-        false,
-        lto->getChunkSize());
-    codeModified = helix.apply(newLDI, h);
+    codeModified = true;
     usedTechnique = &helix;
-
   } else if (true && par.isTransformationEnabled(DSWP_ID)
              && ltm->isTransformationEnabled(DSWP_ID)
              && dswp.canBeAppliedToLoop(LDI, h)) {
@@ -182,7 +194,12 @@ bool Parallelizer::parallelizeLoop(LoopDependenceInfo *LDI,
     /*
      * Apply DSWP.
      */
-    codeModified = dswp.apply(LDI, h);
+    if (generateSPLENDIDInput) {
+      mm->addMetadata(loopStructure, "splendid.dswp.loop", std::to_string(0));
+    } else {
+      codeModified = dswp.apply(LDI, h);
+    }
+    codeModified = true;
     usedTechnique = &dswp;
   }
 
@@ -198,53 +215,54 @@ bool Parallelizer::parallelizeLoop(LoopDependenceInfo *LDI,
   /*
    * Fetch the environment array where the exit block ID has been stored.
    */
-  assert(usedTechnique != nullptr);
-  auto envArray = usedTechnique->getEnvArray();
-  assert(envArray != nullptr);
+  if (!generateSPLENDIDInput) {
+    assert(usedTechnique != nullptr);
+    auto envArray = usedTechnique->getEnvArray();
+    assert(envArray != nullptr);
 
-  /*
-   * Fetch entry and exit point executed by the parallelized loop.
-   */
-  auto entryPoint = usedTechnique->getParLoopEntryPoint();
-  auto exitPoint = usedTechnique->getParLoopExitPoint();
-  assert(entryPoint != nullptr && exitPoint != nullptr);
+    /*
+     * Fetch entry and exit point executed by the parallelized loop.
+     */
+    auto entryPoint = usedTechnique->getParLoopEntryPoint();
+    auto exitPoint = usedTechnique->getParLoopExitPoint();
+    assert(entryPoint != nullptr && exitPoint != nullptr);
 
-  /*
-   * The loop has been parallelized.
-   *
-   * Link the parallelized loop within the original function that includes the
-   * sequential loop.
-   */
-  if (verbose != Verbosity::Disabled) {
-    errs() << prefix << "  Link the parallelize loop\n";
+    /*
+     * The loop has been parallelized.
+     *
+     * Link the parallelized loop within the original function that includes the
+     * sequential loop.
+     */
+    if (verbose != Verbosity::Disabled) {
+      errs() << prefix << "  Link the parallelize loop\n";
+    }
+    auto exitBlockID = LDI->getEnvironment()->getExitBlockID();
+    auto exitIndex = ConstantInt::get(
+        par.int64,
+        exitBlockID >= 0
+            ? usedTechnique->getIndexOfEnvironmentVariable(exitBlockID)
+            : -1);
+    auto loopExitBlocks = loopStructure->getLoopExitBasicBlocks();
+    auto linker = par.getLinker();
+    linker->linkTransformedLoopToOriginalFunction(
+        loopPreHeader,
+        entryPoint,
+        exitPoint,
+        envArray,
+        exitIndex,
+        loopExitBlocks,
+        usedTechnique->getMinimumNumberOfIdleCores());
+    assert(par.verifyCode());
+
+    // if (verbose >= Verbosity::Maximal) {
+    //   loopFunction->print(errs() << "Final printout:\n"); errs() << "\n";
+    // }
+    if (verbose != Verbosity::Disabled) {
+      errs() << prefix << "  The loop has been parallelized with "
+             << usedTechnique->getName() << "\n";
+      errs() << prefix << "Exit\n";
+    }
   }
-  auto exitBlockID = LDI->getEnvironment()->getExitBlockID();
-  auto exitIndex = ConstantInt::get(
-      par.int64,
-      exitBlockID >= 0
-          ? usedTechnique->getIndexOfEnvironmentVariable(exitBlockID)
-          : -1);
-  auto loopExitBlocks = loopStructure->getLoopExitBasicBlocks();
-  auto linker = par.getLinker();
-  linker->linkTransformedLoopToOriginalFunction(
-      loopPreHeader,
-      entryPoint,
-      exitPoint,
-      envArray,
-      exitIndex,
-      loopExitBlocks,
-      usedTechnique->getMinimumNumberOfIdleCores());
-  assert(par.verifyCode());
-
-  // if (verbose >= Verbosity::Maximal) {
-  //   loopFunction->print(errs() << "Final printout:\n"); errs() << "\n";
-  // }
-  if (verbose != Verbosity::Disabled) {
-    errs() << prefix << "  The loop has been parallelized with "
-           << usedTechnique->getName() << "\n";
-    errs() << prefix << "Exit\n";
-  }
-
   return true;
 }
 } // namespace llvm::noelle

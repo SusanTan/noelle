@@ -51,6 +51,7 @@ private:
   /*
    * Fields
    */
+  bool generateSPLENDIDInput;
   bool forceParallelization;
 
   /*

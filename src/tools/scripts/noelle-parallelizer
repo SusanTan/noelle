@@ -31,9 +31,9 @@ echo $cmdToExecute ;
 eval $cmdToExecute ;
 
 # Step 4: cleaning the metadata that are now disaligned with the code
-cmdToExecute="noelle-meta-clean ${intermediateResult_unoptimized} ${intermediateResult_unoptimized}" ;
-echo $cmdToExecute ;
-eval $cmdToExecute ;
+#cmdToExecute="noelle-meta-clean ${intermediateResult_unoptimized} ${intermediateResult_unoptimized}" ;
+#echo $cmdToExecute ;
+#eval $cmdToExecute ;
 
 # Step 5: conventional optimizations
 cmdToExecute="clang -O3 -c -emit-llvm ${intermediateResult_unoptimized} -o ${outputIR}" ;

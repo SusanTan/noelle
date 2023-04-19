@@ -6,7 +6,7 @@ inputIR=$1
 afterLoopMetadata="afterLoopMetadata.bc"
 intermediateResult="baseline_with_parallel_plan.bc" ;
 intermediateResult_unoptimized="parallelized_unoptimized.bc" ;
-outputIR=$4
+outputIR=$3
 
 # Step 0: Add loop ID to all loops
 cmdToExecute="noelle-meta-loop-embed ${inputIR} -o ${afterLoopMetadata}"
@@ -26,7 +26,7 @@ echo $cmdToExecute ;
 eval $cmdToExecute ;
 
 # Step 3: Run loop parallelization on bitcode with parallel plan
-cmdToExecute="noelle-parallelizer-loop code_to_parallelize.bc -o ${intermediateResult_unoptimized} ${@:5}" ;
+cmdToExecute="noelle-parallelizer-loop code_to_parallelize.bc -o ${outputIR} ${@:5}" ;
 echo $cmdToExecute ;
 eval $cmdToExecute ;
 
@@ -39,11 +39,11 @@ eval $cmdToExecute ;
 #cmdToExecute="clang -O3 -c -emit-llvm ${intermediateResult_unoptimized} -o ${outputIR}" ;
 #echo $cmdToExecute ;
 #eval $cmdToExecute ;
-
-# Step 6: Link with the runtime
+#
+## Step 6: Link with the runtime
 #llvm-link ${outputIR} Parallelizer_utils.bc -o ${outputIR} ;
-
-# Step 7: conventional optimizations
+#
+## Step 7: conventional optimizations
 #cmdToExecute="clang -O3 -c -emit-llvm ${outputIR} -o ${outputIR}" ;
 #echo $cmdToExecute ;
 #eval $cmdToExecute ;
