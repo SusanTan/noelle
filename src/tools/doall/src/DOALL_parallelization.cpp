@@ -19,12 +19,47 @@
  OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include "noelle/core/LoopEnvironment.hpp"
 #include "noelle/core/ReductionSCC.hpp"
 #include "noelle/core/InductionVariableSCC.hpp"
 #include "noelle/tools/DOALL.hpp"
 #include "noelle/tools/DOALLTask.hpp"
 
 namespace llvm::noelle {
+
+bool DOALL::addSPLENDIDMetadata(LoopDependenceInfo *LDI, Heuristics *h) {
+
+  /*
+   * Check if DOALL is enabled.
+   */
+  if (!this->enabled) {
+    return false;
+  }
+
+  /*
+   * Fetch the headers.
+   */
+  auto loopStructure = LDI->getLoopStructure();
+  auto loopHeader = loopStructure->getHeader();
+  auto loopPreHeader = loopStructure->getPreHeader();
+
+  /*
+   * Fetch the loop function.
+   */
+  auto loopFunction = loopStructure->getFunction();
+
+  /*
+   * Fetch the environment of the loop.
+   */
+  auto loopEnvironment = LDI->getEnvironment();
+  assert(loopEnvironment != nullptr);
+
+  // add metadata to reduction
+  if (this->addSPLENDIDReduction(LDI, 0) && loopEnvironment)
+    return true;
+  else
+    return false;
+}
 
 bool DOALL::apply(LoopDependenceInfo *LDI, Heuristics *h) {
 
@@ -126,7 +161,6 @@ bool DOALL::apply(LoopDependenceInfo *LDI, Heuristics *h) {
     if (this->verbose != Verbosity::Disabled) {
       errs() << "DOALL:     " << *producer << "\n";
     }
-
     return true;
   };
   auto isSkippable = [this, loopEnvironment, sccManager, chunkerTask](

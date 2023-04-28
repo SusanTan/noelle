@@ -229,6 +229,59 @@ void ParallelizationTechnique::populateLiveInEnvironment(
   }
 }
 
+bool ParallelizationTechnique::addSPLENDIDReduction(
+    LoopDependenceInfo *LDI,
+    Value *numberOfThreadsExecuted) {
+  errs() << "SUSAN: addSPLENDIDReduction\n";
+
+  /*
+   * Fetch the loop headers.
+   */
+  auto loopSummary = LDI->getLoopStructure();
+  auto loopPreHeader = loopSummary->getPreHeader();
+
+  /*
+   * Fetch the SCCDAG.
+   */
+  auto sccManager = LDI->getSCCManager();
+  auto loopSCCDAG = sccManager->getSCCDAG();
+
+  /*
+   * Fetch the environment of the loop
+   */
+  auto environment = LDI->getEnvironment();
+  assert(environment != nullptr);
+
+  /*
+   * Collect reduction operation information needed to accumulate reducable
+   * variables after parallelization execution
+   */
+  std::unordered_map<uint32_t, Instruction::BinaryOps> reducableBinaryOps;
+  std::unordered_map<uint32_t, Value *> initialValues;
+  for (auto envID : environment->getEnvIDsOfLiveOutVars()) {
+    /*
+     * Collect information about the reduction
+     */
+    auto producer = environment->getProducer(envID);
+    auto producerSCC = loopSCCDAG->sccOfValue(producer);
+    auto producerSCCAttributes =
+        cast<BinaryReductionSCC>(sccManager->getSCCAttrs(producerSCC));
+    assert(producerSCCAttributes != nullptr);
+
+    /*
+     * Get the information about the reduction.
+     */
+    errs() << "SUSAN: reduction op: "
+           << producerSCCAttributes->getReductionOperation() << "\n";
+    reducableBinaryOps[envID] = producerSCCAttributes->getReductionOperation();
+    errs() << "SUSAN: initialValue: "
+           << *(producerSCCAttributes->getInitialValue()) << "\n";
+    auto initialValue = producerSCCAttributes->getInitialValue();
+  }
+
+  return true;
+}
+
 BasicBlock *ParallelizationTechnique::
     performReductionToAllReducableLiveOutVariables(
         LoopDependenceInfo *LDI,

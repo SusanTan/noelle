@@ -43,6 +43,7 @@ public:
   DSWP(Noelle &par, bool forceParallelization, bool enableSCCMerging);
 
   bool apply(LoopDependenceInfo *LDI, Heuristics *h) override;
+  bool addSPLENDIDMetadata(LoopDependenceInfo *LDI, Heuristics *h) override;
 
   bool canBeAppliedToLoop(LoopDependenceInfo *LDI,
                           Heuristics *h) const override;

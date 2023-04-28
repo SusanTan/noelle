@@ -53,6 +53,7 @@ public:
    * Apply the parallelization technique to the loop LDI.
    */
   virtual bool apply(LoopDependenceInfo *LDI, Heuristics *h) = 0;
+  virtual bool addSPLENDIDMetadata(LoopDependenceInfo *LDI, Heuristics *h) = 0;
 
   /*
    * Can the current parallelization technique be applied to parallelize loop
@@ -110,6 +111,9 @@ protected:
   void allocateEnvironmentArray(LoopDependenceInfo *LDI);
 
   void populateLiveInEnvironment(LoopDependenceInfo *LDI);
+
+  virtual bool addSPLENDIDReduction(LoopDependenceInfo *LDI,
+                                    Value *numberOfThreadsExecuted);
 
   virtual BasicBlock *performReductionToAllReducableLiveOutVariables(
       LoopDependenceInfo *LDI,
@@ -202,6 +206,7 @@ protected:
   Noelle &noelle;
   Verbosity verbose;
   LoopEnvironmentBuilder *envBuilder;
+  std::vector<Instruction *> liveins;
 
   /*
    * Parallel task related information.

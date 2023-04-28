@@ -129,6 +129,7 @@ bool Parallelizer::parallelizeLoop(LoopDependenceInfo *LDI,
      */
     if (generateSPLENDIDInput) {
       mm->addMetadata(loopStructure, "splendid.doall.loop", std::to_string(0));
+      codeModified = doall.addSPLENDIDMetadata(LDI, h);
     } else {
       codeModified = doall.apply(LDI, h);
     }
@@ -143,6 +144,7 @@ bool Parallelizer::parallelizeLoop(LoopDependenceInfo *LDI,
      */
     if (generateSPLENDIDInput) {
       mm->addMetadata(loopStructure, "splendid.helix.loop", std::to_string(0));
+      codeModified = helix.addSPLENDIDMetadata(LDI, h);
     } else {
       codeModified = helix.apply(LDI, h);
 
@@ -196,6 +198,7 @@ bool Parallelizer::parallelizeLoop(LoopDependenceInfo *LDI,
      */
     if (generateSPLENDIDInput) {
       mm->addMetadata(loopStructure, "splendid.dswp.loop", std::to_string(0));
+      codeModified = dswp.addSPLENDIDMetadata(LDI, h);
     } else {
       codeModified = dswp.apply(LDI, h);
     }

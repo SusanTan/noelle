@@ -42,6 +42,7 @@ public:
   DOALL(Noelle &noelle);
 
   bool apply(LoopDependenceInfo *LDI, Heuristics *h) override;
+  bool addSPLENDIDMetadata(LoopDependenceInfo *LDI, Heuristics *h) override;
 
   bool canBeAppliedToLoop(LoopDependenceInfo *LDI,
                           Heuristics *h) const override;

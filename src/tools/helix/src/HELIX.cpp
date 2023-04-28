@@ -112,6 +112,11 @@ bool HELIX::canBeAppliedToLoop(LoopDependenceInfo *LDI, Heuristics *h) const {
   return true;
 }
 
+bool HELIX::addSPLENDIDMetadata(LoopDependenceInfo *LDI, Heuristics *h) {
+  errs() << "SUSAN: addSPLENDIDMetadata HELIX\n";
+  return true;
+}
+
 bool HELIX::apply(LoopDependenceInfo *LDI, Heuristics *h) {
 
   /*
