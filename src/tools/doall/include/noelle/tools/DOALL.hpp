@@ -21,6 +21,7 @@
  */
 #pragma once
 
+#include "noelle/core/MetadataManager.hpp"
 #include "noelle/core/SystemHeaders.hpp"
 #include "noelle/core/LoopDependenceInfo.hpp"
 #include "noelle/core/PDG.hpp"
@@ -42,7 +43,9 @@ public:
   DOALL(Noelle &noelle);
 
   bool apply(LoopDependenceInfo *LDI, Heuristics *h) override;
-  bool addSPLENDIDMetadata(LoopDependenceInfo *LDI, Heuristics *h) override;
+  bool addSPLENDIDMetadata(LoopDependenceInfo *LDI,
+                           Heuristics *h,
+                           MetadataManager *mm) override;
 
   bool canBeAppliedToLoop(LoopDependenceInfo *LDI,
                           Heuristics *h) const override;

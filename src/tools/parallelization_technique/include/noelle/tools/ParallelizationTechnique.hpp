@@ -21,6 +21,7 @@
  */
 #pragma once
 
+#include "noelle/core/MetadataManager.hpp"
 #include "noelle/core/SystemHeaders.hpp"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
@@ -53,7 +54,9 @@ public:
    * Apply the parallelization technique to the loop LDI.
    */
   virtual bool apply(LoopDependenceInfo *LDI, Heuristics *h) = 0;
-  virtual bool addSPLENDIDMetadata(LoopDependenceInfo *LDI, Heuristics *h) = 0;
+  virtual bool addSPLENDIDMetadata(LoopDependenceInfo *LDI,
+                                   Heuristics *h,
+                                   MetadataManager *mm) = 0;
 
   /*
    * Can the current parallelization technique be applied to parallelize loop
@@ -113,7 +116,8 @@ protected:
   void populateLiveInEnvironment(LoopDependenceInfo *LDI);
 
   virtual bool addSPLENDIDReduction(LoopDependenceInfo *LDI,
-                                    Value *numberOfThreadsExecuted);
+                                    Value *numberOfThreadsExecuted,
+                                    MetadataManager *mm);
 
   virtual BasicBlock *performReductionToAllReducableLiveOutVariables(
       LoopDependenceInfo *LDI,

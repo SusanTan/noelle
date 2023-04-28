@@ -20,6 +20,7 @@
  OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "noelle/core/LoopEnvironment.hpp"
+#include "noelle/core/MetadataManager.hpp"
 #include "noelle/core/ReductionSCC.hpp"
 #include "noelle/core/InductionVariableSCC.hpp"
 #include "noelle/tools/DOALL.hpp"
@@ -27,7 +28,9 @@
 
 namespace llvm::noelle {
 
-bool DOALL::addSPLENDIDMetadata(LoopDependenceInfo *LDI, Heuristics *h) {
+bool DOALL::addSPLENDIDMetadata(LoopDependenceInfo *LDI,
+                                Heuristics *h,
+                                MetadataManager *mm) {
 
   /*
    * Check if DOALL is enabled.
@@ -55,7 +58,7 @@ bool DOALL::addSPLENDIDMetadata(LoopDependenceInfo *LDI, Heuristics *h) {
   assert(loopEnvironment != nullptr);
 
   // add metadata to reduction
-  if (this->addSPLENDIDReduction(LDI, 0) && loopEnvironment)
+  if (this->addSPLENDIDReduction(LDI, 0, mm) && loopEnvironment)
     return true;
   else
     return false;

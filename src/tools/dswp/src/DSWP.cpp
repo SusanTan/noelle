@@ -185,7 +185,9 @@ bool DSWP::canBeAppliedToLoop(LoopDependenceInfo *LDI, Heuristics *h) const {
   return true;
 }
 
-bool DSWP::addSPLENDIDMetadata(LoopDependenceInfo *LDI, Heuristics *h) {
+bool DSWP::addSPLENDIDMetadata(LoopDependenceInfo *LDI,
+                               Heuristics *h,
+                               MetadataManager *mm) {
   errs() << "SUSAN: addSPLENDIDMetadata DSWP\n";
   return true;
 }

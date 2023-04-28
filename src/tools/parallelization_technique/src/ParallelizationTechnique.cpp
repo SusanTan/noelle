@@ -20,6 +20,7 @@
  OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "noelle/tools/ParallelizationTechnique.hpp"
+#include "noelle/core/MetadataManager.hpp"
 #include "noelle/core/ReductionSCC.hpp"
 #include "noelle/core/BinaryReductionSCC.hpp"
 #include "noelle/core/LoopCarriedUnknownSCC.hpp"
@@ -231,7 +232,8 @@ void ParallelizationTechnique::populateLiveInEnvironment(
 
 bool ParallelizationTechnique::addSPLENDIDReduction(
     LoopDependenceInfo *LDI,
-    Value *numberOfThreadsExecuted) {
+    Value *numberOfThreadsExecuted,
+    MetadataManager *mm) {
   errs() << "SUSAN: addSPLENDIDReduction\n";
 
   /*
@@ -271,12 +273,72 @@ bool ParallelizationTechnique::addSPLENDIDReduction(
     /*
      * Get the information about the reduction.
      */
-    errs() << "SUSAN: reduction op: "
-           << producerSCCAttributes->getReductionOperation() << "\n";
+    errs() << "SUSAN: reduction : " << *producer << "\n";
     reducableBinaryOps[envID] = producerSCCAttributes->getReductionOperation();
     errs() << "SUSAN: initialValue: "
            << *(producerSCCAttributes->getInitialValue()) << "\n";
     auto initialValue = producerSCCAttributes->getInitialValue();
+    auto reduceOp = producerSCCAttributes->getReductionOperation();
+    switch (reduceOp) {
+      case Instruction::Add:
+      case Instruction::FAdd:
+        mm->addMetadata((Instruction *)producer,
+                        "splendid.reduce.add",
+                        std::to_string(0));
+        break;
+      case Instruction::Sub:
+      case Instruction::FSub:
+        mm->addMetadata((Instruction *)producer,
+                        "splendid.reduce.sub",
+                        std::to_string(0));
+        break;
+      case Instruction::Mul:
+      case Instruction::FMul:
+        mm->addMetadata((Instruction *)producer,
+                        "splendid.reduce.mul",
+                        std::to_string(0));
+        break;
+      case Instruction::UDiv:
+      case Instruction::SDiv:
+      case Instruction::FDiv:
+        mm->addMetadata((Instruction *)producer,
+                        "splendid.reduce.div",
+                        std::to_string(0));
+        break;
+      case Instruction::URem:
+      case Instruction::SRem:
+      case Instruction::FRem:
+        mm->addMetadata((Instruction *)producer,
+                        "splendid.reduce.rem",
+                        std::to_string(0));
+        break;
+      case Instruction::Shl:
+        mm->addMetadata((Instruction *)producer,
+                        "splendid.reduce.shl",
+                        std::to_string(0));
+        break;
+      case Instruction::LShr:
+      case Instruction::AShr:
+        mm->addMetadata((Instruction *)producer,
+                        "splendid.reduce.shr",
+                        std::to_string(0));
+        break;
+      case Instruction::And:
+        mm->addMetadata((Instruction *)producer,
+                        "splendid.reduce.and",
+                        std::to_string(0));
+        break;
+      case Instruction::Or:
+        mm->addMetadata((Instruction *)producer,
+                        "splendid.reduce.or",
+                        std::to_string(0));
+        break;
+      case Instruction::Xor:
+        mm->addMetadata((Instruction *)producer,
+                        "splendid.reduce.xor",
+                        std::to_string(0));
+        break;
+    }
   }
 
   return true;
