@@ -76,7 +76,7 @@ test_parallelized.bc: baseline_with_metadata.bc Parallelizer_utils.bc
 
 splendid_input.bc: baseline_with_metadata.bc Parallelizer_utils.bc
 	noelle-parallelizer-splendid $< -o $@ $(NOELLE_OPTIONS) $(SPLENDID_OPTIONS)
-	opt -globaldce $@ -o $@
+	opt -globaldce -instcombine $@ -o $@
 
 test_parallelized_autotuned.bc: baseline_with_metadata.bc input.txt Parallelizer_utils.bc
 	noelle-parallelizer-autotuner --parallelizer-args="$< -o $@ $(NOELLE_OPTIONS) $(PARALLELIZATION_OPTIONS)" --libs="$(LIBS)" --input="$(INPUT)" --autotuner-time="$(TIME)" --autotuner-numconf="$(NUM_CONF)" --autotuner-seedconf="$(SEED_CONF)" $(NOSEARCHSPACE) $(NODOALLFILTERING) $(NODOALLTIMEFILTERING)
