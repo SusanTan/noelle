@@ -16,7 +16,7 @@ RUNTIME_CFLAGS="-DDEBUG"
 # 	- To dump the PDG: -noelle-pdg-dump
 PARALLELIZATION_OPTIONS=-alloc-aa-verbose=1 -noelle-parallelizer-force
 SPLENDID_OPTIONS=-noelle-generate-splendid-input -alloc-aa-verbose=1 -noelle-parallelizer-force -noelle-disable-helix -noelle-disable-dswp
-NOELLE_OPTIONS=-noelle-pdg-verbose=1 -noelle-verbose=2 -noelle-min-hot=0 -noelle-inliner-avoid-hoist-to-main
+NOELLE_OPTIONS=-noelle-pdg-verbose=1 -noelle-verbose=2 -noelle-min-hot=0 -noelle-inliner-avoid-hoist-to-main -noelle-disable-scev-simplification
 TOOLS_OPTIONS=
 OPT_LEVEL=-O3
 
@@ -109,7 +109,8 @@ baseline_pre_prof: baseline_pre.bc
 input.txt:
 	@../../scripts/create_input.sh $@
 
-test_correctness: input.txt baseline $(OPTIMIZED) splendid_input.bc
+#test_correctness: input.txt baseline $(OPTIMIZED) splendid_input.bc
+test_correctness: input.txt baseline $(OPTIMIZED)
 	@../../scripts/test_correctness.sh $(NUM_RUNS)
 
 clean:

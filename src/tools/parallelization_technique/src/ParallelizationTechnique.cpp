@@ -267,8 +267,10 @@ bool ParallelizationTechnique::addSPLENDIDReduction(
     auto producer = environment->getProducer(envID);
     auto producerSCC = loopSCCDAG->sccOfValue(producer);
     auto producerSCCAttributes =
-        cast<BinaryReductionSCC>(sccManager->getSCCAttrs(producerSCC));
-    assert(producerSCCAttributes != nullptr);
+        dyn_cast<BinaryReductionSCC>(sccManager->getSCCAttrs(producerSCC));
+    // assert(producerSCCAttributes != nullptr);
+    if (!producerSCCAttributes)
+      continue;
 
     /*
      * Get the information about the reduction.
